@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using Elements.Core;
 using FrooxEngine;
 
 namespace ReferenceReplacement.Logic;
@@ -153,13 +154,11 @@ internal static class ReferenceScanner
 
     private sealed class ReferenceMatchAccumulator
     {
-        private static readonly ReferenceEqualityComparer ReferenceComparer = new();
-
         private readonly IWorldElement _source;
         private readonly IWorldElement _target;
-        private readonly List<SyncReferenceMatch> _matches = new();
-        private readonly HashSet<ISyncRef> _visitedRefs = new(ReferenceComparer);
-        private readonly HashSet<object> _visitedEnumerables = new(ReferenceComparer);
+        private List<SyncReferenceMatch>? _matches;
+        private HashSet<ISyncRef>? _visitedRefs;
+        private readonly HashSet<object> _visitedEnumerables = new(ReferenceEqualityComparer.Instance);
 
         private int _visitedMembers;
         private int _incompatibleCount;
@@ -171,6 +170,8 @@ internal static class ReferenceScanner
             ArgumentNullException.ThrowIfNull(target);
             _source = source;
             _target = target;
+            _matches = Pool.BorrowList<SyncReferenceMatch>();
+            _visitedRefs = Pool.BorrowHashSet<ISyncRef>();
         }
 
         internal bool TryCaptureDirect(ISyncMember member, TraversalPath path)
@@ -237,12 +238,39 @@ internal static class ReferenceScanner
 
         internal ReferenceScanResult BuildResult()
         {
-            return new ReferenceScanResult(_matches.AsReadOnly(), _incompatibleCount, _visitedMembers, _lastPath);
+            try
+            {
+                SyncReferenceMatch[] snapshot = _matches?.ToArray() ?? Array.Empty<SyncReferenceMatch>();
+                return new ReferenceScanResult(snapshot, _incompatibleCount, _visitedMembers, _lastPath);
+            }
+            finally
+            {
+                ReleasePools();
+            }
+        }
+
+        private void ReleasePools()
+        {
+            if (_matches != null)
+            {
+                _matches.Clear();
+                Pool.Return(ref _matches);
+                _matches = null;
+            }
+
+            if (_visitedRefs != null)
+            {
+                _visitedRefs.Clear();
+                Pool.Return(ref _visitedRefs);
+                _visitedRefs = null;
+            }
+
+            _visitedEnumerables.Clear();
         }
 
         private void Capture(ISyncRef syncRef, TraversalPath path)
         {
-            if (!_visitedRefs.Add(syncRef))
+            if (_visitedRefs == null || !_visitedRefs.Add(syncRef))
             {
                 return;
             }
@@ -259,7 +287,7 @@ internal static class ReferenceScanner
             }
 
             _lastPath = path.Value;
-            _matches.Add(new SyncReferenceMatch(syncRef, path.Value));
+            _matches?.Add(new SyncReferenceMatch(syncRef, path.Value));
         }
 
         private bool MatchesSource(ISyncRef syncRef)
@@ -321,6 +349,8 @@ internal static class ReferenceScanner
 
     private sealed class ReferenceEqualityComparer : IEqualityComparer<object>
     {
+        public static ReferenceEqualityComparer Instance { get; } = new();
+
         public new bool Equals(object? x, object? y) => ReferenceEquals(x, y);
 
         public int GetHashCode(object obj) => RuntimeHelpers.GetHashCode(obj);
