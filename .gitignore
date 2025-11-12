@@ -16,3 +16,6 @@ obj/
 
 # Local Resonite installation (never check in game files)
 Resonite/
+
+# Private notes (non-repo disclosure)
+local_notes/

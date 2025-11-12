@@ -1,0 +1,21 @@
+# AGENTS (Repository Root)
+
+This file is **authoritative and persistent** for everything under `/ReferenceReplacementMod`. Keep it in version control and treat its directives as mandatory.
+
+## Directives
+1. **Testing cadence:** Hands-on runtime testing happens later in a live Resonite session; until then, document assumptions and leave TODOs rather than speculative fixes.
+2. **Localization:** UI remains English-only until Resonite exposes extensible localization hooks. Do not ship partial translations; revisit only when upstream enables custom locale registration.
+3. **Knowledge management:** Split knowledge based on disclosure level.
+   - Public/committable notes (design decisions, checklists) belong in versioned docs like this AGENTS file or other repo docs.
+   - Private, potentially sensitive research (e.g., raw assembly dumps, exploratory notes) must live under the git-ignored `local_notes/` directory, each topic in its own markdown file to keep knowledge granular.
+4. **Persistence:** Any change to policies/workflow must be reflected here immediately. Subdirectories inherit these rules unless they define their own `AGENTS.md`.
+
+## Scope / Status
+- Repository initialized 2025-11-12 with Reference Replacement mod for ResoniteModLoader.
+- Current deliverable: Dev Tool UI for bulk `ISyncRef` replacement plus creation-menu hook.
+
+## Localization Policy (Public Summary)
+- English-only interface. Reevaluate once Resonite core supports custom localized strings for Dev Tool menus and UIX builders.
+
+## History Tracking Rule
+- Detailed work history lives in the git commit log; do not maintain manual work logs in docs. Summaries belong in commit messages and PR descriptions only.
