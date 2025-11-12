@@ -32,7 +32,7 @@ internal static class DevToolMenuPatch
         item.Button.LocalPressed += (_, __) =>
         {
             Slot? suggestedRoot = tool?.Grabber?.HolderSlot ?? tool?.LocalUserSpace;
-            ReferenceReplacementDialogManager.Show(__instance.LocalUser, suggestedRoot);
+            ReferenceReplacementEntryPoint.Open(__instance.LocalUser, suggestedRoot);
         };
     }
 }

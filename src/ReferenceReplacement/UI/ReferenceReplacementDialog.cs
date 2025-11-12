@@ -9,9 +9,9 @@ namespace ReferenceReplacement.UI;
 
 public sealed class ReferenceReplacementDialog : Component
 {
-    public readonly SyncRef<Slot> ProcessRoot = new();
-    public readonly SyncRef<IWorldElement> SourceElement = new();
-    public readonly SyncRef<IWorldElement> TargetElement = new();
+    public SyncRef<Slot> ProcessRoot { get; } = new();
+    public SyncRef<IWorldElement> SourceElement { get; } = new();
+    public SyncRef<IWorldElement> TargetElement { get; } = new();
 
     private readonly SyncRef<Text> _statusText = new();
     private readonly SyncRef<Text> _detailText = new();
@@ -72,9 +72,19 @@ public sealed class ReferenceReplacementDialog : Component
             return;
         }
 
-        Slot.OrderOffset = DateTime.UtcNow.Ticks;
-        Slot.LocalScale = new float3(1f, 1f, 1f);
+        ConfigureRootSlot();
 
+        var ui = new UIBuilder(Slot);
+        ui.Style.MinHeight = 28f;
+        ui.Style.MinWidth = 120f;
+
+        BuildPanel(ui);
+    }
+
+    private void ConfigureRootSlot()
+    {
+        Slot!.OrderOffset = DateTime.UtcNow.Ticks;
+        Slot.LocalScale = new float3(1f, 1f, 1f);
         Slot.AttachComponent<Canvas>();
 
         var rectTransform = Slot.AttachComponent<RectTransform>();
@@ -82,64 +92,79 @@ public sealed class ReferenceReplacementDialog : Component
         rectTransform.AnchorMax.Value = new float2(0.5f, 0.5f);
         rectTransform.OffsetMin.Value = new float2(-450f, -260f);
         rectTransform.OffsetMax.Value = new float2(450f, 260f);
+    }
 
-        var ui = new UIBuilder(Slot);
-        ui.Style.MinHeight = 28f;
-        ui.Style.MinWidth = 120f;
-
+    private void BuildPanel(UIBuilder ui)
+    {
         colorX panelTint = new(0.08f, 0.08f, 0.1f, 0.92f);
         var panel = ui.Panel(in panelTint, zwrite: false);
         ui.NestInto(panel.RectTransform);
         ui.VerticalLayout(10f, 20f, Alignment.TopLeft);
 
+        BuildHeader(ui);
+        BuildReferenceEditors(ui);
+        BuildActionButtons(ui);
+        BuildStatusSection(ui);
+
+        ui.NestOut();
+    }
+
+    private static void BuildHeader(UIBuilder ui)
+    {
         LocaleString title = (LocaleString)"Reference Replacement";
         ui.Text(in title, size: 36, bestFit: false, alignment: Alignment.MiddleLeft, parseRTF: false);
 
         LocaleString subtitle = (LocaleString)"Scan a slot tree and replace every SyncRef that points to your source.";
         ui.Text(in subtitle, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false, nullContent: string.Empty);
-
-        AddReferenceEditor(ui, "Process root (Slot)", ProcessRoot);
-        AddReferenceEditor(ui, "Source reference", SourceElement);
-        AddReferenceEditor(ui, "Replacement reference", TargetElement);
-
-        ui.Spacer(8f);
-
-        ui.HorizontalLayout(8f);
-        LocaleString analyzeLabel = (LocaleString)"Analyze";
-        var analyzeButton = ui.Button(in analyzeLabel);
-        analyzeButton.LocalPressed += (_, __) => Analyze(applyChanges: false);
-
-        LocaleString replaceLabel = (LocaleString)"Replace";
-        var replaceButton = ui.Button(in replaceLabel);
-        replaceButton.LocalPressed += (_, __) => Analyze(applyChanges: true);
-
-        LocaleString closeLabel = (LocaleString)"Close";
-        var closeButton = ui.Button(in closeLabel);
-        closeButton.LocalPressed += (_, __) => Close();
-        ui.NestOut();
-
-        ui.Spacer(4f);
-        LocaleString statusHeading = (LocaleString)"Status";
-        ui.Text(in statusHeading, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false, nullContent: string.Empty);
-        LocaleString statusContent = (LocaleString)"Waiting for analysis.";
-        var statusText = ui.Text(in statusContent, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false, nullContent: string.Empty);
-        _statusText.Target = statusText;
-
-        LocaleString detail = (LocaleString)string.Empty;
-        var detailText = ui.Text(in detail, size: 24, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false);
-        _detailText.Target = detailText;
-
-        ui.NestOut();
+        ui.Spacer(6f);
     }
 
-    private void AddReferenceEditor(UIBuilder ui, string label, ISyncRef referenceField)
+    private void BuildReferenceEditors(UIBuilder ui)
+    {
+        BuildReferenceEditor(ui, "Process root (Slot)", ProcessRoot);
+        BuildReferenceEditor(ui, "Source reference", SourceElement);
+        BuildReferenceEditor(ui, "Replacement reference", TargetElement);
+        ui.Spacer(8f);
+    }
+
+    private static void BuildReferenceEditor(UIBuilder ui, string label, ISyncRef referenceField)
     {
         LocaleString labelString = (LocaleString)label;
         ui.Text(in labelString, bestFit: false, alignment: Alignment.MiddleLeft, parseRTF: false, nullContent: string.Empty);
+
         ui.PushStyle();
         ui.Style.MinHeight = 32f;
         ui.RefMemberEditor(referenceField);
         ui.PopStyle();
+    }
+
+    private void BuildActionButtons(UIBuilder ui)
+    {
+        ui.HorizontalLayout(8f);
+
+        LocaleString analyzeLabel = (LocaleString)"Analyze";
+        ui.Button(in analyzeLabel).LocalPressed += (_, __) => Analyze(applyChanges: false);
+
+        LocaleString replaceLabel = (LocaleString)"Replace";
+        ui.Button(in replaceLabel).LocalPressed += (_, __) => Analyze(applyChanges: true);
+
+        LocaleString closeLabel = (LocaleString)"Close";
+        ui.Button(in closeLabel).LocalPressed += (_, __) => Close();
+
+        ui.NestOut();
+        ui.Spacer(6f);
+    }
+
+    private void BuildStatusSection(UIBuilder ui)
+    {
+        LocaleString statusHeading = (LocaleString)"Status";
+        ui.Text(in statusHeading, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false, nullContent: string.Empty);
+
+        LocaleString statusContent = (LocaleString)"Waiting for analysis.";
+        _statusText.Target = ui.Text(in statusContent, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false, nullContent: string.Empty);
+
+        LocaleString detail = (LocaleString)string.Empty;
+        _detailText.Target = ui.Text(in detail, size: 24, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false);
     }
 
     private void Analyze(bool applyChanges)
@@ -151,7 +176,7 @@ public sealed class ReferenceReplacementDialog : Component
         }
 
         ReferenceScanResult scanResult = ReferenceScanner.Scan(root, source, target);
-        if (scanResult.MatchingRefs.Count == 0)
+        if (scanResult.Matches.Count == 0)
         {
             UpdateStatus("No references found in the selected root.");
             return;
@@ -159,7 +184,7 @@ public sealed class ReferenceReplacementDialog : Component
 
         if (!applyChanges)
         {
-            UpdateStatus($"Found {scanResult.MatchingRefs.Count} references (skipped {scanResult.IncompatibleCount}).", scanResult);
+            UpdateStatus($"Found {scanResult.Matches.Count} references (skipped {scanResult.IncompatibleCount}).", scanResult);
             return;
         }
 
@@ -221,13 +246,13 @@ public sealed class ReferenceReplacementDialog : Component
             return;
         }
 
-        LocaleString description = (LocaleString)$"Reference Replacement ({scanResult.MatchingRefs.Count})";
+        LocaleString description = (LocaleString)$"Reference Replacement ({scanResult.Matches.Count})";
         UndoManagerExtensions.BeginUndoBatch(world, description);
         try
         {
-            foreach (ReferenceHit hit in scanResult.MatchingRefs)
+            foreach (SyncReferenceMatch match in scanResult.Matches)
             {
-                hit.SyncRef.Target = target;
+                match.SyncRef.Target = target;
             }
         }
         finally
@@ -235,7 +260,7 @@ public sealed class ReferenceReplacementDialog : Component
             UndoManagerExtensions.EndUndoBatch(world);
         }
 
-        UpdateStatus($"Replaced {scanResult.MatchingRefs.Count} references. Skipped {scanResult.IncompatibleCount} incompatible entries.", scanResult);
+        UpdateStatus($"Replaced {scanResult.Matches.Count} references. Skipped {scanResult.IncompatibleCount} incompatible entries.", scanResult);
     }
 
     private void UpdateStatus(string message, ReferenceScanResult? scanResult = null)

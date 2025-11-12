@@ -1,0 +1,45 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <ResoniteAssembliesDir Condition="'$(ResoniteAssembliesDir)'==''">$(MSBuildThisFileDirectory)..\..\Resonite\</ResoniteAssembliesDir>
+  </PropertyGroup>
+
+  <Target Name="EnsureResoniteAssembliesDir" BeforeTargets="ResolveReferences">
+    <Error Condition="'$(ResoniteAssembliesDir)'==''" Text="Set ResoniteAssembliesDir when running tests." />
+  </Target>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.2" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ReferenceReplacement\ReferenceReplacement.csproj" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="FrooxEngine">
+      <HintPath>$(ResoniteAssembliesDir)/FrooxEngine.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="Elements.Core">
+      <HintPath>$(ResoniteAssembliesDir)/Elements.Core.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="Renderite.Shared">
+      <HintPath>$(ResoniteAssembliesDir)/Renderite.Shared.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

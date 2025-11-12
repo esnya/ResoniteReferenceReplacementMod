@@ -29,21 +29,7 @@ public class ReferenceReplacementMod : ResoniteMod
             return;
         }
 
-        DevCreateNewForm.AddAction("Editor", "Reference Replacement (Mod)", slot =>
-        {
-            if (slot == null)
-            {
-                return;
-            }
-
-            User? user = slot.World?.LocalUser;
-            if (user == null)
-            {
-                return;
-            }
-
-            ReferenceReplacementDialogManager.Show(user, slot);
-        });
+        DevCreateNewForm.AddAction("Editor", "Reference Replacement (Mod)", ReferenceReplacementEntryPoint.OpenFromSlot);
 
         _creationEntryRegistered = true;
     }
