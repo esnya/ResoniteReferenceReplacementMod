@@ -1,0 +1,49 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>12.0</LangVersion>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <CopyToMods Condition="'$(CopyToMods)'==''">false</CopyToMods>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(ResoniteAssembliesDir)'!=''">
+    <ResolvedResoniteAssembliesDir>$([System.IO.Path]::GetFullPath('$(ResoniteAssembliesDir)'))</ResolvedResoniteAssembliesDir>
+  </PropertyGroup>
+
+  <Target Name="EnsureResoniteAssembliesDir" BeforeTargets="ResolveReferences">
+    <Error Condition="'$(ResoniteAssembliesDir)'==''" Text="Set ResoniteAssembliesDir=/absolute/path/to/Resonite/ when invoking dotnet (e.g. dotnet build -p:ResoniteAssembliesDir=../Resonite)." />
+    <Error Condition="!Exists('$(ResolvedResoniteAssembliesDir)/FrooxEngine.dll')" Text="Cannot find FrooxEngine.dll under $(ResolvedResoniteAssembliesDir)." />
+  </Target>
+
+  <ItemGroup>
+    <Reference Include="ResoniteModLoader">
+      <HintPath>$(ResolvedResoniteAssembliesDir)/Libraries/ResoniteModLoader.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="HarmonyLib">
+      <HintPath>$(ResolvedResoniteAssembliesDir)/rml_libs/0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="FrooxEngine">
+      <HintPath>$(ResolvedResoniteAssembliesDir)/FrooxEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Elements.Core">
+      <HintPath>$(ResolvedResoniteAssembliesDir)/Elements.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Renderite.Shared">
+      <HintPath>$(ResolvedResoniteAssembliesDir)/Renderite.Shared.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(CopyToMods)'=='true'">
+    <Message Text="Copying $(TargetFileName) to $(ResolvedResoniteAssembliesDir)/rml_mods" Importance="high" />
+    <Copy SourceFiles="$(TargetDir)$(TargetFileName)" DestinationFolder="$(ResolvedResoniteAssembliesDir)/rml_mods" ContinueOnError="true" />
+  </Target>
+
+</Project>
