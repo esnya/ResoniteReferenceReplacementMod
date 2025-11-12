@@ -15,8 +15,15 @@ internal static class ReferenceScanner
         ArgumentNullException.ThrowIfNull(root);
 
         var traversal = new SyncReferenceTraversal(source, target);
-        traversal.VisitSlot(root);
-        return traversal.BuildResult();
+        try
+        {
+            traversal.VisitSlot(root);
+            return traversal.BuildResult();
+        }
+        finally
+        {
+            traversal.Dispose();
+        }
     }
 
     internal static ReferenceScanResult Scan(HierarchyBlueprint blueprintRoot, IWorldElement source, IWorldElement target)
@@ -24,11 +31,18 @@ internal static class ReferenceScanner
         ArgumentNullException.ThrowIfNull(blueprintRoot);
 
         var traversal = new SyncReferenceTraversal(source, target);
-        traversal.VisitBlueprint(blueprintRoot, new TraversalPath(blueprintRoot.Label));
-        return traversal.BuildResult();
+        try
+        {
+            traversal.VisitBlueprint(blueprintRoot, new TraversalPath(blueprintRoot.Label));
+            return traversal.BuildResult();
+        }
+        finally
+        {
+            traversal.Dispose();
+        }
     }
 
-    private sealed class SyncReferenceTraversal
+    private sealed class SyncReferenceTraversal : IDisposable
     {
         private readonly ReferenceMatchAccumulator _accumulator;
 
@@ -64,6 +78,11 @@ internal static class ReferenceScanner
         }
 
         internal ReferenceScanResult BuildResult() => _accumulator.BuildResult();
+
+        public void Dispose()
+        {
+            _accumulator.Dispose();
+        }
 
         private void VisitComponents(Slot slot, TraversalPath parentPath)
         {
@@ -152,7 +171,7 @@ internal static class ReferenceScanner
         }
     }
 
-    private sealed class ReferenceMatchAccumulator
+    private sealed class ReferenceMatchAccumulator : IDisposable
     {
         private readonly IWorldElement _source;
         private readonly IWorldElement _target;
@@ -238,31 +257,20 @@ internal static class ReferenceScanner
 
         internal ReferenceScanResult BuildResult()
         {
-            try
-            {
-                SyncReferenceMatch[] snapshot = _matches?.ToArray() ?? Array.Empty<SyncReferenceMatch>();
-                return new ReferenceScanResult(snapshot, _incompatibleCount, _visitedMembers, _lastPath);
-            }
-            finally
-            {
-                ReleasePools();
-            }
+            SyncReferenceMatch[] snapshot = _matches?.ToArray() ?? Array.Empty<SyncReferenceMatch>();
+            return new ReferenceScanResult(snapshot, _incompatibleCount, _visitedMembers, _lastPath);
         }
 
-        private void ReleasePools()
+        public void Dispose()
         {
             if (_matches != null)
             {
-                _matches.Clear();
                 Pool.Return(ref _matches);
-                _matches = null;
             }
 
             if (_visitedRefs != null)
             {
-                _visitedRefs.Clear();
                 Pool.Return(ref _visitedRefs);
-                _visitedRefs = null;
             }
 
             _visitedEnumerables.Clear();
