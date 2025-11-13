@@ -10,6 +10,7 @@ This file is **authoritative and persistent** for everything under `/ReferenceRe
    - Public/committable notes (design decisions, checklists) belong in versioned docs like this AGENTS file or other repo docs.
    - Private, potentially sensitive research (e.g., raw assembly dumps, exploratory notes) must live under the git-ignored `local_notes/` directory, each topic in its own markdown file to keep knowledge granular.
 5. **Persistence:** Any change to policies/workflow must be reflected here immediately. Subdirectories inherit these rules unless they define their own `AGENTS.md`.
+6. **Data model constraints:** This mod must not introduce new FrooxEngine data-model types or `SyncDelegate` definitions. All functionality must be built on existing data-model constructs to avoid sync registration overhead.
 
 ## Scope / Status
 - Repository initialized 2025-11-12 with Reference Replacement mod for ResoniteModLoader.

@@ -9,9 +9,9 @@ internal static class ReferenceReplacementDialogManager
 {
     private static readonly Dictionary<RefID, WeakReference<ReferenceReplacementDialog>> Dialogs = new();
 
-    public static void Show(User user, Slot? suggestedRoot)
+    public static void Show(User user, Slot? dialogSlot, Slot? suggestedRoot)
     {
-        if (user == null || user.LocalUserSpace == null)
+        if (user == null)
         {
             return;
         }
@@ -20,9 +20,11 @@ internal static class ReferenceReplacementDialogManager
 
         if (Dialogs.TryGetValue(user.ReferenceID, out var weakReference))
         {
-            if (weakReference.TryGetTarget(out var existing) && existing != null && existing.IsAlive)
+            if (weakReference.TryGetTarget(out var existing) && existing is { IsAlive: true })
             {
                 existing.Focus();
+                existing.RepositionFor(user);
+                dialogSlot?.Destroy();
                 if (!existing.HasProcessRoot && suggestedRoot != null)
                 {
                     existing.TrySetProcessRoot(suggestedRoot);
@@ -34,7 +36,7 @@ internal static class ReferenceReplacementDialogManager
             Dialogs.Remove(user.ReferenceID);
         }
 
-        ReferenceReplacementDialog dialog = ReferenceReplacementDialog.Create(user, suggestedRoot);
+        ReferenceReplacementDialog dialog = ReferenceReplacementDialog.Create(user, dialogSlot, suggestedRoot);
         Dialogs[user.ReferenceID] = new WeakReference<ReferenceReplacementDialog>(dialog);
     }
 
@@ -72,4 +74,5 @@ internal static class ReferenceReplacementDialogManager
             Dialogs.Remove(key);
         }
     }
+
 }

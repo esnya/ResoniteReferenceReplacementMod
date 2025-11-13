@@ -4,14 +4,14 @@ namespace ReferenceReplacement.UI;
 
 internal static class ReferenceReplacementEntryPoint
 {
-    public static void Open(User? user, Slot? suggestedRoot)
+    public static void Open(User? user, Slot? dialogSlot, Slot? suggestedRoot)
     {
         if (user == null)
         {
             return;
         }
 
-        ReferenceReplacementDialogManager.Show(user, suggestedRoot);
+        ReferenceReplacementDialogManager.Show(user, dialogSlot, suggestedRoot);
     }
 
     public static void OpenFromSlot(Slot? slot)
@@ -21,6 +21,6 @@ internal static class ReferenceReplacementEntryPoint
             return;
         }
 
-        Open(slot.World?.LocalUser, slot);
+        Open(slot.World?.LocalUser, slot, slot);
     }
 }

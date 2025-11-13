@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Elements.Core;
 using FrooxEngine;
 using FrooxEngine.UIX;
@@ -10,7 +11,6 @@ namespace ReferenceReplacement.UI;
 
 public sealed class ReferenceReplacementDialog
 {
-
     private readonly User _owner;
     private readonly Slot _rootSlot;
     private readonly ISyncRef _processRootRef;
@@ -21,13 +21,14 @@ public sealed class ReferenceReplacementDialog
     private Text? _detailText;
     private bool _disposed;
 
-    private ReferenceReplacementDialog(User owner, Slot? suggestedRoot)
+    private ReferenceReplacementDialog(User owner, Slot? dialogSlot, Slot? suggestedRoot)
     {
         _owner = owner ?? throw new ArgumentNullException(nameof(owner));
-        Slot? userSpace = owner.LocalUserSpace ?? throw new InvalidOperationException("User space is unavailable.");
-
-        _rootSlot = userSpace.AddSlot("Reference Replacement Dialog");
+        _rootSlot = (dialogSlot ?? owner.LocalUserSpace?.AddSlot("Reference Replacement Dialog"))
+            ?? throw new InvalidOperationException("Unable to acquire a slot for the dialog.");
+        _rootSlot.Name = "Reference Replacement Dialog";
         _rootSlot.Destroyed += OnSlotDestroyed;
+        ClearSlot(_rootSlot);
 
         (_processRootRef, _sourceRef, _targetRef) = CreateReferenceFields();
 
@@ -36,11 +37,12 @@ public sealed class ReferenceReplacementDialog
         InitializeInputs(suggestedRoot);
         UpdateStatus("Select inputs to begin.");
         Focus();
+        RepositionFor(owner);
     }
 
-    public static ReferenceReplacementDialog Create(User owner, Slot? suggestedRoot)
+    public static ReferenceReplacementDialog Create(User owner, Slot? dialogSlot, Slot? suggestedRoot)
     {
-        return new ReferenceReplacementDialog(owner, suggestedRoot);
+        return new ReferenceReplacementDialog(owner, dialogSlot, suggestedRoot);
     }
 
     public bool HasProcessRoot => GetProcessRootSlot() != null;
@@ -53,6 +55,22 @@ public sealed class ReferenceReplacementDialog
         {
             _rootSlot.OrderOffset = DateTime.UtcNow.Ticks;
         }
+    }
+
+    public void RepositionFor(User? user)
+    {
+        if (user == null || !IsAlive)
+        {
+            return;
+        }
+
+        PrepareRootSlot(user);
+        _rootSlot.PositionInFrontOfUser(float3.Backward);
+        if (user.LocalUserRoot != null)
+        {
+            _rootSlot.GlobalPosition += _rootSlot.Right * 0.5f * user.LocalUserRoot.GlobalScale;
+        }
+        _rootSlot.PointAtUserHead(float3.Backward, verticalAxisOnly: true);
     }
 
     public void TrySetProcessRoot(Slot? slot)
@@ -134,9 +152,11 @@ public sealed class ReferenceReplacementDialog
     private void ConfigureRootSlot()
     {
         _rootSlot.OrderOffset = DateTime.UtcNow.Ticks;
-        _rootSlot.LocalScale = new float3(0.0005f, 0.0005f, 0.0005f);
         _rootSlot.PersistentSelf = false;
-        _rootSlot.AttachComponent<ObjectRoot>();
+        if (_rootSlot.GetComponent<ObjectRoot>() == null)
+        {
+            _rootSlot.AttachComponent<ObjectRoot>();
+        }
         _rootSlot.Tag = "Developer";
     }
 
@@ -144,6 +164,7 @@ public sealed class ReferenceReplacementDialog
     {
         LocaleString title = (LocaleString)"Reference Replacement";
         UIBuilder frameBuilder = RadiantUI_Panel.SetupPanel(_rootSlot, title, new float2(1200f, 900f));
+        _rootSlot.LocalScale *= 0.0005f;
         RadiantUI_Constants.SetupEditorStyle(frameBuilder, extraPadding: true);
         frameBuilder.Style.MinHeight = 32f;
         frameBuilder.Style.MinWidth = 160f;
@@ -155,69 +176,32 @@ public sealed class ReferenceReplacementDialog
             canvas.AcceptPhysicalTouch.Value = false;
         }
 
-        List<RectTransform> columns = frameBuilder.SplitHorizontally(0.42f, 0.58f, 0.02f);
-        BuildInputColumn(columns[0]);
-        BuildAnalysisColumn(columns[1]);
+        BuildPanel(frameBuilder);
     }
 
-    private void BuildInputColumn(RectTransform column)
+    private void BuildPanel(UIBuilder ui)
     {
-        UIBuilder columnBuilder = CreateSection(column, RadiantUI_Constants.Neutrals.MID.SetA(0.9f));
-        LocaleString heading = (LocaleString)"Inputs";
-        columnBuilder.Text(in heading, size: 32, bestFit: false, alignment: Alignment.MiddleLeft);
+        colorX panelTint = new(0.08f, 0.08f, 0.1f, 0.92f);
+        var panel = ui.Panel(in panelTint, zwrite: false);
+        ui.NestInto(panel.RectTransform);
+        ui.VerticalLayout(10f, 20f, Alignment.TopLeft);
 
-        LocaleString hint = (LocaleString)"Pick the tree to scan, the SyncRef source, and the replacement target.";
-        columnBuilder.Text(in hint, size: 24, bestFit: false, alignment: Alignment.TopLeft);
-        columnBuilder.Spacer(6f);
+        BuildHeader(ui);
+        BuildReferenceEditors(ui);
+        BuildActionButtons(ui);
+        BuildStatusSection(ui);
 
-        columnBuilder.ScrollArea();
-        columnBuilder.VerticalLayout(6f, 12f);
-        columnBuilder.FitContent(SizeFit.Disabled, SizeFit.MinSize);
-
-        BuildReferenceEditors(columnBuilder);
-        columnBuilder.NestOut();
+        ui.NestOut();
     }
 
-    private void BuildAnalysisColumn(RectTransform column)
+    private static void BuildHeader(UIBuilder ui)
     {
-        UIBuilder columnBuilder = CreateSection(column, RadiantUI_Constants.Neutrals.MID.SetA(0.9f));
-        columnBuilder.HorizontalHeader(56f, out RectTransform header, out RectTransform content);
+        LocaleString title = (LocaleString)"Reference Replacement";
+        ui.Text(in title, size: 36, bestFit: false, alignment: Alignment.MiddleLeft, parseRTF: false);
 
-        var headerBuilder = new UIBuilder(header);
-        RadiantUI_Constants.SetupEditorStyle(headerBuilder, extraPadding: true);
-        LocaleString heading = (LocaleString)"Analysis";
-        headerBuilder.Text(in heading, size: 32, bestFit: false, alignment: Alignment.MiddleLeft);
-        LocaleString detail = (LocaleString)"Review status and run replacements.";
-        headerBuilder.Text(in detail, size: 24, bestFit: false, alignment: Alignment.MiddleLeft);
-
-        var bodyBuilder = new UIBuilder(content);
-        RadiantUI_Constants.SetupEditorStyle(bodyBuilder, extraPadding: true);
-        bodyBuilder.HorizontalFooter(80f, out RectTransform footer, out RectTransform bodyContent);
-
-        var statusBuilder = new UIBuilder(bodyContent);
-        RadiantUI_Constants.SetupEditorStyle(statusBuilder, extraPadding: true);
-        statusBuilder.ScrollArea();
-        statusBuilder.VerticalLayout(6f, 12f);
-        statusBuilder.FitContent(SizeFit.Disabled, SizeFit.MinSize);
-        BuildStatusSection(statusBuilder);
-
-        var footerBuilder = new UIBuilder(footer);
-        RadiantUI_Constants.SetupEditorStyle(footerBuilder, extraPadding: true);
-        BuildActionButtons(footerBuilder);
-
-        columnBuilder.NestOut();
-    }
-
-    private static UIBuilder CreateSection(RectTransform target, colorX tint)
-    {
-        var builder = new UIBuilder(target.Slot);
-        RadiantUI_Constants.SetupEditorStyle(builder, extraPadding: true);
-        Image panel = builder.Panel(tint);
-        panel.Sprite.Target = builder.Style.ButtonSprite;
-        panel.NineSliceSizing.Value = builder.Style.NineSliceSizing;
-        builder.NestInto(panel.RectTransform);
-        builder.VerticalLayout(8f, 16f, Alignment.TopLeft);
-        return builder;
+        LocaleString subtitle = (LocaleString)"Scan a slot tree and replace every SyncRef that points to your source.";
+        ui.Text(in subtitle, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false, nullContent: string.Empty);
+        ui.Spacer(6f);
     }
 
     private void BuildReferenceEditors(UIBuilder ui)
@@ -230,11 +214,12 @@ public sealed class ReferenceReplacementDialog
 
     private static void BuildReferenceEditor(UIBuilder ui, string label, ISyncRef referenceField)
     {
+        RadiantUI_Constants.SetupEditorStyle(ui, extraPadding: true);
         LocaleString labelString = (LocaleString)label;
         ui.Text(in labelString, bestFit: false, alignment: Alignment.MiddleLeft, parseRTF: false, nullContent: string.Empty);
 
         ui.PushStyle();
-        ui.Style.MinHeight = 32f;
+        ui.Style.MinHeight = 40f;
         ui.RefMemberEditor(referenceField);
         ui.PopStyle();
     }
@@ -243,7 +228,6 @@ public sealed class ReferenceReplacementDialog
     {
         ui.HorizontalLayout(8f);
         ui.Style.MinHeight = 48f;
-        ui.Style.FlexibleWidth = 1f;
 
         LocaleString analyzeLabel = (LocaleString)"Analyze";
         ui.Button(in analyzeLabel).LocalPressed += (_, __) => Analyze(applyChanges: false);
@@ -253,16 +237,17 @@ public sealed class ReferenceReplacementDialog
 
         LocaleString closeLabel = (LocaleString)"Close";
         ui.Button(in closeLabel).LocalPressed += (_, __) => Close();
+
         ui.NestOut();
     }
 
     private void BuildStatusSection(UIBuilder ui)
     {
         LocaleString statusHeading = (LocaleString)"Status";
-        ui.Text(in statusHeading, size: 28, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false);
+        ui.Text(in statusHeading, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false, nullContent: string.Empty);
 
         LocaleString statusContent = (LocaleString)"Waiting for analysis.";
-        _statusText = ui.Text(in statusContent, size: 24, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false);
+        _statusText = ui.Text(in statusContent, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false, nullContent: string.Empty);
 
         LocaleString detail = (LocaleString)string.Empty;
         _detailText = ui.Text(in detail, size: 24, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false);
@@ -294,35 +279,27 @@ public sealed class ReferenceReplacementDialog
 
     private bool TryResolveInputs(out Slot root, out IWorldElement source, out IWorldElement target, out string message)
     {
-        root = null!;
-        source = null!;
-        target = null!;
+        root = GetProcessRootSlot()!;
+        source = (IWorldElement)_sourceRef.Target!;
+        target = (IWorldElement)_targetRef.Target!;
 
-        Slot? rootCandidate = GetProcessRootSlot();
-        IWorldElement? sourceCandidate = _sourceRef.Target;
-        IWorldElement? targetCandidate = _targetRef.Target;
-
-        if (rootCandidate == null)
+        if (root == null)
         {
             message = "Process root is required.";
             return false;
         }
 
-        if (sourceCandidate == null)
+        if (source == null)
         {
             message = "Source reference is required.";
             return false;
         }
 
-        if (targetCandidate == null)
+        if (target == null)
         {
             message = "Replacement reference is required.";
             return false;
         }
-
-        root = rootCandidate;
-        source = sourceCandidate;
-        target = targetCandidate;
 
         if (ReferenceEquals(source, target) || source.ReferenceID == target.ReferenceID)
         {
@@ -374,24 +351,47 @@ public sealed class ReferenceReplacementDialog
             UndoManagerExtensions.EndUndoBatch(world);
         }
 
-        UpdateStatus($"Replaced {scanResult.Matches.Count} references. Skipped {scanResult.IncompatibleCount} incompatible entries.", scanResult);
+        UpdateStatus($"Replaced {scanResult.Matches.Count} references (skipped {scanResult.IncompatibleCount}).", scanResult);
     }
 
-    private void UpdateStatus(string message, ReferenceScanResult? scanResult = null)
+    private void UpdateStatus(string message, ReferenceScanResult? detail = null)
     {
-        LocaleString status = (LocaleString)message;
         if (_statusText != null)
         {
-            _statusText.LocaleContent = status;
+            _statusText.Content.Value = message;
         }
 
         if (_detailText != null)
         {
-            string details = scanResult == null
+            string text = detail == null
                 ? string.Empty
-                : $"Visited {scanResult.VisitedMembers} sync members. Last path: {scanResult.LastHitPath ?? "n/a"}";
-            LocaleString detailString = (LocaleString)details;
-            _detailText.LocaleContent = detailString;
+                : $"Last hit: {detail.LastHitPath ?? "(n/a)"}\nVisited members: {detail.VisitedMembers}\nIncompatible refs: {detail.IncompatibleCount}";
+            _detailText.Content.Value = text;
         }
+    }
+
+    private static void ClearSlot(Slot slot)
+    {
+        foreach (Slot child in slot.Children.ToArray())
+        {
+            child.Destroy();
+        }
+
+        foreach (Component component in slot.Components.ToArray())
+        {
+            component.Destroy();
+        }
+    }
+
+    private void PrepareRootSlot(User owner)
+    {
+        Slot? parent = owner.LocalUserSpace;
+        if (parent != null && _rootSlot.Parent != parent)
+        {
+            _rootSlot.SetParent(parent, false);
+        }
+
+        _rootSlot.LocalPosition = float3.Zero;
+        _rootSlot.LocalRotation = floatQ.Identity;
     }
 }
