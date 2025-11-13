@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Verify Steam credentials
         shell: bash
@@ -41,6 +43,11 @@ jobs:
         with:
           steam-user: ${{ secrets.STEAMUSER }}
           steam-password: ${{ secrets.STEAMPASS }}
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
@@ -73,3 +80,46 @@ jobs:
         run: |
           dotnet test ReferenceReplacement.sln --configuration Release --no-build \
             -p:ResoniteAssembliesDir="${{ steps.resonite.outputs.resonite-path }}"
+
+      - name: Prepare release assets
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifacts_dir=release-artifacts
+          mkdir -p "$artifacts_dir"
+          cp src/ReferenceReplacement/bin/Release/net9.0/ReferenceReplacement.dll "$artifacts_dir/ReferenceReplacement.dll"
+          if [ -f src/ReferenceReplacement/bin/Release/net9.0/ReferenceReplacement.pdb ]; then
+            cp src/ReferenceReplacement/bin/Release/net9.0/ReferenceReplacement.pdb "$artifacts_dir/ReferenceReplacement.pdb"
+          fi
+
+      - name: Upload release artifacts
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: reference-replacement
+          path: release-artifacts
+          if-no-files-found: error
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: reference-replacement
+          path: release-artifacts
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Reference Replacement ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            release-artifacts/ReferenceReplacement.dll
+            release-artifacts/ReferenceReplacement.pdb
