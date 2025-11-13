@@ -58,28 +58,32 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: Restore
+        env:
+          ResoniteAssembliesDir: ${{ steps.resonite.outputs.resonite-path }}
         shell: bash
         run: |
-          dotnet restore ReferenceReplacement.sln \
-            -p:ResoniteAssembliesDir="${{ steps.resonite.outputs.resonite-path }}"
+          dotnet restore ReferenceReplacement.sln
 
       - name: Verify formatting
+        env:
+          ResoniteAssembliesDir: ${{ steps.resonite.outputs.resonite-path }}
         shell: bash
         run: |
-          dotnet format ReferenceReplacement.sln --verify-no-changes --no-restore \
-            --property ResoniteAssembliesDir="${{ steps.resonite.outputs.resonite-path }}"
+          dotnet format ReferenceReplacement.sln --verify-no-changes --no-restore
 
       - name: Build
+        env:
+          ResoniteAssembliesDir: ${{ steps.resonite.outputs.resonite-path }}
         shell: bash
         run: |
-          dotnet build ReferenceReplacement.sln --configuration Release --no-restore \
-            -p:ResoniteAssembliesDir="${{ steps.resonite.outputs.resonite-path }}"
+          dotnet build ReferenceReplacement.sln --configuration Release --no-restore
 
       - name: Test
+        env:
+          ResoniteAssembliesDir: ${{ steps.resonite.outputs.resonite-path }}
         shell: bash
         run: |
-          dotnet test ReferenceReplacement.sln --configuration Release --no-build \
-            -p:ResoniteAssembliesDir="${{ steps.resonite.outputs.resonite-path }}"
+          dotnet test ReferenceReplacement.sln --configuration Release --no-build
 
       - name: Prepare release assets
         if: startsWith(github.ref, 'refs/tags/v')
