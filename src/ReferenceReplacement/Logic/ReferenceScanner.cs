@@ -135,55 +135,103 @@ internal static class ReferenceScanner
                 VisitEnumerable(enumerable, path);
             }
 
-            foreach (PropertyInfo enumerableProperty in EnumerableInspector.GetEnumerableProperties(member.GetType()))
+            VisitKnownCollections(member, path);
+        }
+
+        private void VisitKnownCollections(ISyncMember member, TraversalPath path)
+        {
+            switch (member)
             {
-                if (!TryGetEnumerableProperty(member, enumerableProperty, out IEnumerable? nested))
-                {
-                    continue;
-                }
-
-                if (nested == null)
-                {
-                    continue;
-                }
-
-                if (_accumulator.ShouldVisitEnumerable(nested))
-                {
-                    VisitEnumerable(nested, path.NextProperty(enumerableProperty.Name));
-                }
+                case ISyncList syncList:
+                    VisitEnumerableProperty(() => syncList.Elements, path, nameof(ISyncList.Elements));
+                    break;
+                case ISyncBag syncBag:
+                    VisitEnumerableProperty(() => syncBag.Elements, path, nameof(ISyncBag.Elements));
+                    VisitEnumerableProperty(() => syncBag.Values, path, nameof(ISyncBag.Values));
+                    break;
+                case ISyncDictionary syncDictionary:
+                    VisitEnumerableProperty(() => syncDictionary.BoxedEntries, path, nameof(ISyncDictionary.BoxedEntries));
+                    VisitEnumerableProperty(() => syncDictionary.Values, path, nameof(ISyncDictionary.Values));
+                    break;
+                case ISyncArray syncArray:
+                    VisitSyncArray(syncArray, path);
+                    break;
             }
         }
 
-        private static bool TryGetEnumerableProperty(ISyncMember member, PropertyInfo property, out IEnumerable? result)
+        private void VisitEnumerableProperty(Func<IEnumerable?> accessor, TraversalPath parentPath, string propertyName)
         {
-            result = null;
-            object? value;
-
+            IEnumerable? enumerable;
             try
             {
-                value = property.GetValue(member);
+                enumerable = accessor();
             }
-            catch (TargetInvocationException ex) when (IsSafeToIgnore(ex.InnerException))
+            catch (Exception ex) when (IsSafeToIgnore(ex))
             {
-                return false;
-            }
-            catch (NotSupportedException)
-            {
-                return false;
+                return;
             }
 
-            if (value is not IEnumerable enumerable)
+            if (enumerable == null)
             {
-                return false;
+                return;
             }
 
-            result = enumerable;
-            return true;
+            if (_accumulator.ShouldVisitEnumerable(enumerable))
+            {
+                VisitEnumerable(enumerable, parentPath.NextProperty(propertyName));
+            }
+        }
+
+        private void VisitSyncArray(ISyncArray array, TraversalPath parentPath)
+        {
+            int count;
+            try
+            {
+                count = array.Count;
+            }
+            catch (Exception ex) when (IsSafeToIgnore(ex))
+            {
+                return;
+            }
+
+            TraversalPath itemsPath = parentPath.NextProperty("Items");
+            for (int index = 0; index < count; index++)
+            {
+                object? element;
+                try
+                {
+                    element = array.GetElement(index);
+                }
+                catch (Exception ex) when (IsSafeToIgnore(ex))
+                {
+                    continue;
+                }
+
+                VisitNestedItem(element, itemsPath.NextIndex(index));
+            }
+        }
+
+        private void VisitNestedItem(object? item, TraversalPath path)
+        {
+            if (item == null)
+            {
+                return;
+            }
+
+            switch (item)
+            {
+                case ISyncMember member:
+                    VisitMember(member, path);
+                    break;
+                case IEnumerable nested when _accumulator.ShouldVisitEnumerable(nested):
+                    VisitEnumerable(nested, path);
+                    break;
+            }
         }
 
         private static bool IsSafeToIgnore(Exception? exception)
         {
-            return exception is NotSupportedException;
+            return exception is NotSupportedException or InvalidOperationException;
         }
 
         private void VisitEnumerable(IEnumerable enumerable, TraversalPath path)
@@ -198,15 +246,7 @@ internal static class ReferenceScanner
                     continue;
                 }
 
-                switch (item)
-                {
-                    case ISyncMember member:
-                        VisitMember(member, itemPath);
-                        break;
-                    case IEnumerable nested when _accumulator.ShouldVisitEnumerable(nested):
-                        VisitEnumerable(nested, itemPath);
-                        break;
-                }
+                VisitNestedItem(item, itemPath);
 
                 index++;
             }
@@ -354,25 +394,6 @@ internal static class ReferenceScanner
 
     private static class EnumerableInspector
     {
-        private static readonly ConditionalWeakTable<Type, PropertyInfo[]> Cache = new();
-
-        internal static PropertyInfo[] GetEnumerableProperties(Type type)
-        {
-            if (Cache.TryGetValue(type, out var cached))
-            {
-                return cached;
-            }
-
-            PropertyInfo[] discovered = Array.FindAll(
-                type.GetProperties(BindingFlags.Instance | BindingFlags.Public),
-                prop => prop.GetIndexParameters().Length == 0 &&
-                        typeof(IEnumerable).IsAssignableFrom(prop.PropertyType) &&
-                        prop.PropertyType != typeof(string));
-
-            Cache.Add(type, discovered);
-            return discovered;
-        }
-
         internal static ISyncRef? TryExtractSyncRef(object candidate)
         {
             Type type = candidate.GetType();
@@ -382,7 +403,7 @@ internal static class ReferenceScanner
             }
 
             PropertyInfo? valueProperty = type.GetProperty("Value");
-            if (valueProperty == null || !typeof(ISyncRef).IsAssignableFrom(valueProperty.PropertyType))
+            if (valueProperty == null)
             {
                 return null;
             }

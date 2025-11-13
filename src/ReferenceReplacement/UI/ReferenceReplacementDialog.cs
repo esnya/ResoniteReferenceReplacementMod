@@ -21,7 +21,7 @@ public sealed class ReferenceReplacementDialog
     private Text? _detailText;
     private bool _disposed;
 
-    private ReferenceReplacementDialog(User owner, Slot? dialogSlot, Slot? suggestedRoot)
+    private ReferenceReplacementDialog(User owner)
     {
         _owner = owner ?? throw new ArgumentNullException(nameof(owner));
         Slot? userSpace = owner.LocalUserSpace ?? throw new InvalidOperationException("User space is unavailable.");
@@ -34,15 +34,14 @@ public sealed class ReferenceReplacementDialog
 
         ConfigureRootSlot();
         BuildUI();
-        InitializeInputs(suggestedRoot);
         UpdateStatus("Select inputs to begin.");
         Focus();
         RepositionFor(owner);
     }
 
-    public static ReferenceReplacementDialog Create(User owner, Slot? dialogSlot, Slot? suggestedRoot)
+    public static ReferenceReplacementDialog Create(User owner)
     {
-        return new ReferenceReplacementDialog(owner, dialogSlot, suggestedRoot);
+        return new ReferenceReplacementDialog(owner);
     }
 
     public bool HasProcessRoot => GetProcessRootSlot() != null;
@@ -99,11 +98,6 @@ public sealed class ReferenceReplacementDialog
         }
 
         ReferenceReplacementDialogManager.Unregister(this);
-    }
-
-    private void InitializeInputs(Slot? suggestedRoot)
-    {
-        _processRootRef.Target = suggestedRoot ?? null!;
     }
 
     private (ISyncRef processRoot, ISyncRef source, ISyncRef target) CreateReferenceFields()
@@ -229,20 +223,20 @@ public sealed class ReferenceReplacementDialog
             return;
         }
 
-        ReferenceScanResult scanResult = ReferenceScanner.Scan(root, source, target);
-        if (scanResult.Matches.Count == 0)
-        {
-            UpdateStatus("No references found in the selected root.");
-            return;
-        }
-
         if (!applyChanges)
         {
+            ReferenceScanResult scanResult = ReferenceScanner.Scan(root, source, target);
+            if (scanResult.Matches.Count == 0)
+            {
+                UpdateStatus("No references found in the selected root.");
+                return;
+            }
+
             UpdateStatus($"Found {scanResult.Matches.Count} references (skipped {scanResult.IncompatibleCount}).", scanResult);
             return;
         }
 
-        ApplyReplacement(scanResult, root, target);
+        ApplyReplacement(root, source, target);
     }
 
     private bool TryResolveInputs(out Slot root, out IWorldElement source, out IWorldElement target, out string message)
@@ -304,8 +298,15 @@ public sealed class ReferenceReplacementDialog
         return _processRootRef.Target as Slot;
     }
 
-    private void ApplyReplacement(ReferenceScanResult scanResult, Slot root, IWorldElement target)
+    private void ApplyReplacement(Slot root, IWorldElement source, IWorldElement target)
     {
+        ReferenceScanResult scanResult = ReferenceScanner.Scan(root, source, target);
+        if (scanResult.Matches.Count == 0)
+        {
+            UpdateStatus("No references found in the selected root.");
+            return;
+        }
+
         World? world = root.World;
         if (world == null)
         {

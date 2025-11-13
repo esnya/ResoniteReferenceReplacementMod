@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Elements.Core;
 using FrooxEngine;
 using ReferenceReplacement.Logic;
@@ -58,6 +59,51 @@ public class ReferenceScannerTests
 
         var match = Assert.Single(result.Matches);
         Assert.Equal("Root.Collection[0]", match.Path);
+    }
+
+    [Fact]
+    public void ScanTraversesSyncListElements()
+    {
+        var source = new FakeWorldElement("Source");
+        var replacement = new FakeWorldElement("Replacement");
+        var nestedRef = new FakeSyncRef("Nested", typeof(FakeWorldElement), source);
+        var syncList = new FakeSyncList("List", nestedRef);
+        var blueprint = HierarchyBlueprint.Create("Root", new ISyncMember[] { syncList }, Array.Empty<HierarchyBlueprint>());
+
+        ReferenceScanResult result = ReferenceScanner.Scan(blueprint, source, replacement);
+
+        var match = Assert.Single(result.Matches);
+        Assert.Equal("Root.List.Elements[0]", match.Path);
+    }
+
+    [Fact]
+    public void ScanTraversesSyncDictionaryValues()
+    {
+        var source = new FakeWorldElement("Source");
+        var replacement = new FakeWorldElement("Replacement");
+        var nestedRef = new FakeSyncRef("Nested", typeof(FakeWorldElement), source);
+        var dictionary = new FakeSyncDictionary("Dict", new KeyValuePair<object, ISyncMember>("Key", nestedRef));
+        var blueprint = HierarchyBlueprint.Create("Root", new ISyncMember[] { dictionary }, Array.Empty<HierarchyBlueprint>());
+
+        ReferenceScanResult result = ReferenceScanner.Scan(blueprint, source, replacement);
+
+        var match = Assert.Single(result.Matches);
+        Assert.Equal("Root.Dict.BoxedEntries[0]", match.Path);
+    }
+
+    [Fact]
+    public void ScanTraversesSyncArrayItems()
+    {
+        var source = new FakeWorldElement("Source");
+        var replacement = new FakeWorldElement("Replacement");
+        var nestedRef = new FakeSyncRef("Nested", typeof(FakeWorldElement), source);
+        var arrayMember = new FakeSyncArray("Array", nestedRef);
+        var blueprint = HierarchyBlueprint.Create("Root", new ISyncMember[] { arrayMember }, Array.Empty<HierarchyBlueprint>());
+
+        ReferenceScanResult result = ReferenceScanner.Scan(blueprint, source, replacement);
+
+        var match = Assert.Single(result.Matches);
+        Assert.Equal("Root.Array.Items[0]", match.Path);
     }
 
     private class FakeWorldElement : IWorldElement
@@ -182,5 +228,94 @@ public class ReferenceScannerTests
         }
 
         public IEnumerator GetEnumerator() => ((IEnumerable)_items).GetEnumerator();
+    }
+
+    private sealed class FakeSyncList : FakeSyncMemberBase, ISyncList
+    {
+        private readonly List<ISyncMember> _elements;
+
+        public FakeSyncList(string name, params ISyncMember[] elements) : base(name)
+        {
+            _elements = elements?.ToList() ?? new List<ISyncMember>();
+        }
+
+        public int Count => _elements.Count;
+        public IEnumerable Elements => _elements;
+
+        public ISyncMember GetElement(int index) => _elements[index];
+        public int IndexOfElement(ISyncMember element) => _elements.IndexOf(element);
+        public ISyncMember AddElement() => throw new NotSupportedException();
+        public void RemoveElement(int index) => throw new NotSupportedException();
+        public ISyncMember MoveElementToIndex(int oldIndex, int newIndex) => throw new NotSupportedException();
+
+        public event SyncListElementsEvent? ElementsAdded
+        {
+            add { }
+            remove { }
+        }
+
+        public event SyncListElementsEvent? ElementsRemoved
+        {
+            add { }
+            remove { }
+        }
+
+        public event SyncListElementsEvent? ElementsRemoving
+        {
+            add { }
+            remove { }
+        }
+
+        public event SyncListEvent? ListCleared
+        {
+            add { }
+            remove { }
+        }
+    }
+
+    private sealed class FakeSyncDictionary : FakeSyncMemberBase, ISyncDictionary
+    {
+        private readonly List<KeyValuePair<object, ISyncMember>> _entries;
+        private readonly Dictionary<object, ISyncMember> _lookup;
+
+        public FakeSyncDictionary(string name, params KeyValuePair<object, ISyncMember>[] entries) : base(name)
+        {
+            _entries = entries?.ToList() ?? new List<KeyValuePair<object, ISyncMember>>();
+            _lookup = _entries.ToDictionary(pair => pair.Key, pair => pair.Value);
+        }
+
+        public IEnumerable<KeyValuePair<object, ISyncMember>> BoxedEntries => _entries;
+        public IEnumerable<ISyncMember> Values => _entries.Select(entry => entry.Value);
+
+        public ISyncMember TryGetMember(object key)
+        {
+            return _lookup.TryGetValue(key, out var value) ? value : throw new KeyNotFoundException();
+        }
+
+        public event SyncDictionaryElementEvent? ElementAdded
+        {
+            add { }
+            remove { }
+        }
+
+        public event SyncDictionaryElementEvent? ElementRemoved
+        {
+            add { }
+            remove { }
+        }
+    }
+
+    private sealed class FakeSyncArray : FakeSyncMemberBase, ISyncArray
+    {
+        private readonly object?[] _items;
+
+        public FakeSyncArray(string name, params object?[] items) : base(name)
+        {
+            _items = items ?? Array.Empty<object?>();
+        }
+
+        public int Count => _items.Length;
+
+        public object GetElement(int index) => _items[index]!;
     }
 }

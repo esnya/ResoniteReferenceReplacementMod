@@ -1,24 +1,17 @@
-using System;
-using System.Collections.Generic;
-using Elements.Core;
 using FrooxEngine;
 
 namespace ReferenceReplacement.UI;
 
 internal static class ReferenceReplacementDialogManager
 {
-    public static void Show(Slot? dialogSlot, Slot? suggestedRoot)
+    public static void Show(User? localUser)
     {
-        User? localUser = dialogSlot?.World?.LocalUser ?? suggestedRoot?.World?.LocalUser;
         if (localUser == null)
         {
-            dialogSlot?.Destroy();
             return;
         }
 
-        dialogSlot?.Destroy();
-
-        ReferenceReplacementDialog.Create(localUser, null, suggestedRoot);
+        ReferenceReplacementDialog.Create(localUser);
     }
 
     public static void Unregister(ReferenceReplacementDialog dialog)
