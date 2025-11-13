@@ -14,6 +14,7 @@ env:
   DOTNET_NOLOGO: true
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
+  RESONITE_INSTALL_DIR: ${{ runner.temp }}/resonite
 
 jobs:
   build:
@@ -43,10 +44,11 @@ jobs:
         with:
           steam-user: ${{ secrets.STEAMUSER }}
           steam-password: ${{ secrets.STEAMPASS }}
+          resonite-path: ${{ env.RESONITE_INSTALL_DIR }}
 
       - name: Install ResoniteModLoader binaries
         env:
-          RESONITE_PATH: ${{ steps.resonite.outputs.resonite-path }}
+          RESONITE_PATH: ${{ env.RESONITE_INSTALL_DIR }}
         shell: bash
         run: |
           set -euo pipefail
@@ -75,28 +77,28 @@ jobs:
 
       - name: Restore
         env:
-          ResoniteAssembliesDir: ${{ steps.resonite.outputs.resonite-path }}
+          ResoniteAssembliesDir: ${{ env.RESONITE_INSTALL_DIR }}
         shell: bash
         run: |
           dotnet restore ReferenceReplacement.sln
 
       - name: Verify formatting
         env:
-          ResoniteAssembliesDir: ${{ steps.resonite.outputs.resonite-path }}
+          ResoniteAssembliesDir: ${{ env.RESONITE_INSTALL_DIR }}
         shell: bash
         run: |
           dotnet format ReferenceReplacement.sln --verify-no-changes --no-restore
 
       - name: Build
         env:
-          ResoniteAssembliesDir: ${{ steps.resonite.outputs.resonite-path }}
+          ResoniteAssembliesDir: ${{ env.RESONITE_INSTALL_DIR }}
         shell: bash
         run: |
           dotnet build ReferenceReplacement.sln --configuration Release --no-restore
 
       - name: Test
         env:
-          ResoniteAssembliesDir: ${{ steps.resonite.outputs.resonite-path }}
+          ResoniteAssembliesDir: ${{ env.RESONITE_INSTALL_DIR }}
         shell: bash
         run: |
           dotnet test ReferenceReplacement.sln --configuration Release --no-build
