@@ -76,6 +76,7 @@ dotnet_diagnostic.IDE0008.severity = warning
 dotnet_diagnostic.IDE0051.severity = warning
 dotnet_diagnostic.IDE0052.severity = warning
 dotnet_diagnostic.IDE0060.severity = warning
+dotnet_diagnostic.IDE0090.severity = warning
 dotnet_diagnostic.IDE0200.severity = warning
 
 # Parameter preferences
