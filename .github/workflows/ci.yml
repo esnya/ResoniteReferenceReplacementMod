@@ -44,6 +44,18 @@ jobs:
           steam-user: ${{ secrets.STEAMUSER }}
           steam-password: ${{ secrets.STEAMPASS }}
 
+      - name: Install ResoniteModLoader binaries
+        env:
+          RESONITE_PATH: ${{ steps.resonite.outputs.resonite-path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -d "$RESONITE_PATH/Libraries" "$RESONITE_PATH/rml_libs"
+          curl -sSfL -o "$RESONITE_PATH/Libraries/ResoniteModLoader.dll" \
+            https://github.com/resonite-modding-group/ResoniteModLoader/releases/latest/download/ResoniteModLoader.dll
+          curl -sSfL -o "$RESONITE_PATH/rml_libs/0Harmony.dll" \
+            https://github.com/resonite-modding-group/ResoniteModLoader/releases/latest/download/0Harmony.dll
+
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
