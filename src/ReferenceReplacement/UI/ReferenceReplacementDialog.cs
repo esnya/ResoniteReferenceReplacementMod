@@ -24,13 +24,13 @@ public sealed class ReferenceReplacementDialog
     private ReferenceReplacementDialog(User owner, Slot? dialogSlot, Slot? suggestedRoot)
     {
         _owner = owner ?? throw new ArgumentNullException(nameof(owner));
-        _rootSlot = (dialogSlot ?? owner.LocalUserSpace?.AddSlot("Reference Replacement Dialog"))
-            ?? throw new InvalidOperationException("Unable to acquire a slot for the dialog.");
-        _rootSlot.Name = "Reference Replacement Dialog";
+        Slot? userSpace = owner.LocalUserSpace ?? throw new InvalidOperationException("User space is unavailable.");
+        _rootSlot = userSpace.AddSlot("Reference Replacement Dialog");
         _rootSlot.Destroyed += OnSlotDestroyed;
         ClearSlot(_rootSlot);
 
         (_processRootRef, _sourceRef, _targetRef) = CreateReferenceFields();
+        ClearInputs();
 
         ConfigureRootSlot();
         BuildUI();
@@ -319,17 +319,25 @@ public sealed class ReferenceReplacementDialog
         }
 
         LocaleString description = (LocaleString)$"Reference Replacement ({scanResult.Matches.Count})";
-        UndoManagerExtensions.BeginUndoBatch(world, description);
+        world.BeginUndoBatch(description);
         try
         {
             foreach (SyncReferenceMatch match in scanResult.Matches)
             {
-                match.SyncRef.Target = target;
+                ISyncRef syncRef = match.SyncRef;
+                IWorldElement? previous = syncRef.Target;
+                if (previous != null && previous.ReferenceID == target.ReferenceID)
+                {
+                    continue;
+                }
+
+                syncRef.CreateUndoPoint(forceNew: true);
+                syncRef.Target = target;
             }
         }
         finally
         {
-            UndoManagerExtensions.EndUndoBatch(world);
+            world.EndUndoBatch();
         }
 
         UpdateStatus($"Replaced {scanResult.Matches.Count} references (skipped {scanResult.IncompatibleCount}).", scanResult);
@@ -362,6 +370,13 @@ public sealed class ReferenceReplacementDialog
         {
             component.Destroy();
         }
+    }
+
+    private void ClearInputs()
+    {
+        _processRootRef.Target = null!;
+        _sourceRef.Target = null!;
+        _targetRef.Target = null!;
     }
 
     private void PrepareRootSlot(User owner)
