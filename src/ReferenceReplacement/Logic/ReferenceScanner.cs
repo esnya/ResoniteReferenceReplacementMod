@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using Elements.Core;
 using FrooxEngine;
+using ReferenceReplacement.Infrastructure;
 
 namespace ReferenceReplacement.Logic;
 
@@ -175,8 +176,10 @@ internal static class ReferenceScanner
     {
         private readonly IWorldElement _source;
         private readonly IWorldElement _target;
-        private List<SyncReferenceMatch>? _matches;
-        private HashSet<ISyncRef>? _visitedRefs;
+        private readonly BorrowedList<SyncReferenceMatch> _matchesLease;
+        private readonly BorrowedHashSet<ISyncRef> _visitedRefsLease;
+        private readonly List<SyncReferenceMatch> _matches;
+        private readonly HashSet<ISyncRef> _visitedRefs;
         private readonly HashSet<object> _visitedEnumerables = new(ReferenceEqualityComparer.Instance);
 
         private int _visitedMembers;
@@ -189,8 +192,8 @@ internal static class ReferenceScanner
             ArgumentNullException.ThrowIfNull(target);
             _source = source;
             _target = target;
-            _matches = Pool.BorrowList<SyncReferenceMatch>();
-            _visitedRefs = Pool.BorrowHashSet<ISyncRef>();
+            _matchesLease = BorrowedList<SyncReferenceMatch>.Rent(out _matches);
+            _visitedRefsLease = BorrowedHashSet<ISyncRef>.Rent(out _visitedRefs);
         }
 
         internal bool TryCaptureDirect(ISyncMember member, TraversalPath path)
@@ -257,28 +260,20 @@ internal static class ReferenceScanner
 
         internal ReferenceScanResult BuildResult()
         {
-            SyncReferenceMatch[] snapshot = _matches?.ToArray() ?? Array.Empty<SyncReferenceMatch>();
+            SyncReferenceMatch[] snapshot = _matches.ToArray();
             return new ReferenceScanResult(snapshot, _incompatibleCount, _visitedMembers, _lastPath);
         }
 
         public void Dispose()
         {
-            if (_matches != null)
-            {
-                Pool.Return(ref _matches);
-            }
-
-            if (_visitedRefs != null)
-            {
-                Pool.Return(ref _visitedRefs);
-            }
-
+            _matchesLease.Dispose();
+            _visitedRefsLease.Dispose();
             _visitedEnumerables.Clear();
         }
 
         private void Capture(ISyncRef syncRef, TraversalPath path)
         {
-            if (_visitedRefs == null || !_visitedRefs.Add(syncRef))
+            if (!_visitedRefs.Add(syncRef))
             {
                 return;
             }
@@ -295,7 +290,7 @@ internal static class ReferenceScanner
             }
 
             _lastPath = path.Value;
-            _matches?.Add(new SyncReferenceMatch(syncRef, path.Value));
+            _matches.Add(new SyncReferenceMatch(syncRef, path.Value));
         }
 
         private bool MatchesSource(ISyncRef syncRef)
