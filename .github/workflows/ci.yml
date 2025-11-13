@@ -50,6 +50,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [ -z "${RESONITE_PATH:-}" ]; then
+            echo '::error::Resonite path is empty. Ensure the setup-resonite-env step succeeded and exposed resonite-path.'
+            exit 1
+          fi
           install -d "$RESONITE_PATH/Libraries" "$RESONITE_PATH/rml_libs"
           curl -sSfL -o "$RESONITE_PATH/Libraries/ResoniteModLoader.dll" \
             https://github.com/resonite-modding-group/ResoniteModLoader/releases/latest/download/ResoniteModLoader.dll
