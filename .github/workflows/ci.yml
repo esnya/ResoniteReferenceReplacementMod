@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify Steam credentials
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.STEAMUSER }}" ]; then
+            echo '::error::Missing secrets.STEAMUSER. Add the Steam username used for SteamCMD downloads.'
+            exit 1
+          fi
+          if [ -z "${{ secrets.STEAMPASS }}" ]; then
+            echo '::error::Missing secrets.STEAMPASS. Add the Steam password used for SteamCMD downloads.'
+            exit 1
+          fi
+
+      - name: Setup Resonite environment
+        id: resonite
+        uses: resonite-modding-group/setup-resonite-env-action@v0.1.0
+        with:
+          steam-user: ${{ secrets.STEAMUSER }}
+          steam-password: ${{ secrets.STEAMPASS }}
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json', '**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore
+        shell: bash
+        run: |
+          dotnet restore ReferenceReplacement.sln \
+            -p:ResoniteAssembliesDir="${{ steps.resonite.outputs.resonite-path }}"
+
+      - name: Verify formatting
+        shell: bash
+        run: |
+          dotnet format ReferenceReplacement.sln --verify-no-changes --no-restore \
+            -p:ResoniteAssembliesDir="${{ steps.resonite.outputs.resonite-path }}"
+
+      - name: Build
+        shell: bash
+        run: |
+          dotnet build ReferenceReplacement.sln --configuration Release --no-restore \
+            -p:ResoniteAssembliesDir="${{ steps.resonite.outputs.resonite-path }}"
+
+      - name: Test
+        shell: bash
+        run: |
+          dotnet test ReferenceReplacement.sln --configuration Release --no-build \
+            -p:ResoniteAssembliesDir="${{ steps.resonite.outputs.resonite-path }}"
