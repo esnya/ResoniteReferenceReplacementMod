@@ -137,12 +137,53 @@ internal static class ReferenceScanner
 
             foreach (PropertyInfo enumerableProperty in EnumerableInspector.GetEnumerableProperties(member.GetType()))
             {
-                object? value = enumerableProperty.GetValue(member);
-                if (value is IEnumerable nested && _accumulator.ShouldVisitEnumerable(nested))
+                if (!TryGetEnumerableProperty(member, enumerableProperty, out IEnumerable? nested))
+                {
+                    continue;
+                }
+
+                if (nested == null)
+                {
+                    continue;
+                }
+
+                if (_accumulator.ShouldVisitEnumerable(nested))
                 {
                     VisitEnumerable(nested, path.NextProperty(enumerableProperty.Name));
                 }
             }
+        }
+
+        private static bool TryGetEnumerableProperty(ISyncMember member, PropertyInfo property, out IEnumerable? result)
+        {
+            result = null;
+            object? value;
+
+            try
+            {
+                value = property.GetValue(member);
+            }
+            catch (TargetInvocationException ex) when (IsSafeToIgnore(ex.InnerException))
+            {
+                return false;
+            }
+            catch (NotSupportedException)
+            {
+                return false;
+            }
+
+            if (value is not IEnumerable enumerable)
+            {
+                return false;
+            }
+
+            result = enumerable;
+            return true;
+        }
+
+        private static bool IsSafeToIgnore(Exception? exception)
+        {
+            return exception is NotSupportedException;
         }
 
         private void VisitEnumerable(IEnumerable enumerable, TraversalPath path)
