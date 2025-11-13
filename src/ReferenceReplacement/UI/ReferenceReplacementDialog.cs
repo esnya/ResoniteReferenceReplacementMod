@@ -46,8 +46,6 @@ public sealed class ReferenceReplacementDialog
         return new ReferenceReplacementDialog(owner, dialogSlot);
     }
 
-    public bool HasProcessRoot => GetProcessRootSlot() != null;
-
     public bool IsAlive => !_disposed && !_rootSlot.IsDestroyed && !_rootSlot.IsRemoved;
 
     public void Focus()
@@ -72,16 +70,6 @@ public sealed class ReferenceReplacementDialog
             _rootSlot.GlobalPosition += _rootSlot.Right * 0.5f * user.LocalUserRoot.GlobalScale;
         }
         _rootSlot.PointAtUserHead(float3.Backward, verticalAxisOnly: true);
-    }
-
-    public void TrySetProcessRoot(Slot? slot)
-    {
-        if (slot == null || _processRootRef.Target != null)
-        {
-            return;
-        }
-
-        _processRootRef.Target = slot;
     }
 
     public void Close()
@@ -227,7 +215,7 @@ public sealed class ReferenceReplacementDialog
 
         if (!applyChanges)
         {
-            ReferenceScanResult scanResult = ReferenceScanner.Scan(root, source, target);
+            ReferenceScanResult scanResult = ReferenceScanner.Scan(root, source, target, _rootSlot);
             if (scanResult.Matches.Count == 0)
             {
                 UpdateStatus("No references found in the selected root.");
@@ -302,7 +290,7 @@ public sealed class ReferenceReplacementDialog
 
     private void ApplyReplacement(Slot root, IWorldElement source, IWorldElement target)
     {
-        ReferenceScanResult scanResult = ReferenceScanner.Scan(root, source, target);
+        ReferenceScanResult scanResult = ReferenceScanner.Scan(root, source, target, _rootSlot);
         if (scanResult.Matches.Count == 0)
         {
             UpdateStatus("No references found in the selected root.");

@@ -10,11 +10,11 @@ namespace ReferenceReplacement.Logic;
 
 internal static class ReferenceScanner
 {
-    public static ReferenceScanResult Scan(Slot root, IWorldElement source, IWorldElement target)
+    public static ReferenceScanResult Scan(Slot root, IWorldElement source, IWorldElement target, Slot? excludedSlot = null)
     {
         ArgumentNullException.ThrowIfNull(root);
 
-        ReferenceScanSession session = new(source, target);
+        ReferenceScanSession session = new(source, target, excludedSlot);
         session.VisitSlot(root, TraversalPath.FromSlot(root));
         return session.BuildResult();
     }
@@ -23,7 +23,7 @@ internal static class ReferenceScanner
     {
         ArgumentNullException.ThrowIfNull(blueprintRoot);
 
-        ReferenceScanSession session = new(source, target);
+        ReferenceScanSession session = new(source, target, excludedSlot: null);
         session.VisitBlueprint(blueprintRoot, new(blueprintRoot.Label));
         return session.BuildResult();
     }
@@ -32,6 +32,7 @@ internal static class ReferenceScanner
     {
         private readonly IWorldElement _source;
         private readonly IWorldElement _target;
+        private readonly Slot? _excludedSlot;
         private readonly List<SyncReferenceMatch> _matches = new();
         private readonly HashSet<ISyncRef> _visitedRefs = new();
         private readonly HashSet<object> _visitedEnumerables = new(ReferenceEqualityComparer.Instance);
@@ -40,15 +41,16 @@ internal static class ReferenceScanner
         private int _incompatibleCount;
         private string? _lastPath;
 
-        internal ReferenceScanSession(IWorldElement source, IWorldElement target)
+        internal ReferenceScanSession(IWorldElement source, IWorldElement target, Slot? excludedSlot)
         {
             _source = source ?? throw new ArgumentNullException(nameof(source));
             _target = target ?? throw new ArgumentNullException(nameof(target));
+            _excludedSlot = excludedSlot;
         }
 
         internal void VisitSlot(Slot? slot, TraversalPath path)
         {
-            if (slot == null)
+            if (slot == null || ReferenceEquals(slot, _excludedSlot))
             {
                 return;
             }
