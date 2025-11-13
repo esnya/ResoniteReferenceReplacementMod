@@ -12,14 +12,14 @@ namespace ReferenceReplacement;
 public class ReferenceReplacementMod : ResoniteMod
 {
     public const string VersionTag = "0.1.0";
-    private const string HarmonyId = "com.c0dex.reference-replacement";
+    private const string HarmonyId = "com.esnya.reference-replacement";
     private const string CreationMenuCategory = "Editor";
     private const string CreationMenuLabel = "Reference Replacement (Mod)";
     private static readonly Harmony HarmonyInstance = new(HarmonyId);
     private static bool _creationEntryRegistered;
 
     public override string Name => "ReferenceReplacement";
-    public override string Author => "codex";
+    public override string Author => "esnya";
     public override string Version => VersionTag;
     public override string Link => "https://example.com/reference-replacement";
 
