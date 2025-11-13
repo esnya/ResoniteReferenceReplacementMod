@@ -13,7 +13,7 @@ using Xunit;
 
 namespace ReferenceReplacement.Tests;
 
-public class ReferenceScannerTests
+public sealed class ReferenceScannerTests
 {
     [Fact]
     public void ScanFindsDirectMatches()
