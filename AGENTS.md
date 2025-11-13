@@ -13,6 +13,16 @@ This file is **authoritative and persistent** for everything under `/ReferenceRe
 5. **Persistence:** Any change to policies/workflow must be reflected here immediately. Subdirectories inherit these rules unless they define their own `AGENTS.md`.
 6. **Data model constraints:** This mod must not introduce new FrooxEngine data-model types or `SyncDelegate` definitions. All functionality must be built on existing data-model constructs to avoid sync registration overhead.
 7. **Design notes ban:** Do not create standalone design notes or ADR-style docs; instead, keep commits and code self-explanatory and update this AGENTS file if process rules change.
+8. **Task completion ritual:** Before declaring any task done, run the following commands in order and address all failures:
+   - `dotnet format ReferenceReplacement.sln --verify-no-changes --no-restore`
+   - `dotnet build ReferenceReplacement.sln --no-restore`
+   - `dotnet test ReferenceReplacement.sln --no-restore`
+   Capture key failures in the report/PR and rerun after fixes.
+9. **WSL / cross-platform NuGet hint:** If `dotnet build`/`test` fails with `Unable to find fallback package folder 'C:\Program Files (x86)\Microsoft Visual Studio\Shared\NuGetPackages'`, do one of the following before rerunning the commands:
+   - Export an override to point at a real folder, e.g. `DOTNET_MSBUILD_SDK_RESOLVER_CLI_FALLBACK_FOLDER=$HOME/.nuget/fallback dotnet build ...` (create the folder first).
+   - Add a symlink/mount so that the Windows path exists from Linux (`sudo mkdir -p /mnt/c/Program\ Files\ \\(x86\\)/Microsoft\ Visual\ Studio/Shared/NuGetPackages`).
+   - Remove the Windows-only fallback entry from the active `NuGet.Config`.
+   Tasks stay “in progress” until at least one of these mitigations succeeds.
 
 ## Scope / Status
 
