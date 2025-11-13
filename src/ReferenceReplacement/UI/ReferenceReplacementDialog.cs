@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Elements.Core;
+
 using FrooxEngine;
 using FrooxEngine.UIX;
 using FrooxEngine.Undo;
+
 using ReferenceReplacement.Logic;
 
 namespace ReferenceReplacement.UI;
@@ -21,11 +24,10 @@ public sealed class ReferenceReplacementDialog
     private Text? _detailText;
     private bool _disposed;
 
-    private ReferenceReplacementDialog(User owner)
+    private ReferenceReplacementDialog(User owner, Slot dialogSlot)
     {
         _owner = owner ?? throw new ArgumentNullException(nameof(owner));
-        Slot? userSpace = owner.LocalUserSpace ?? throw new InvalidOperationException("User space is unavailable.");
-        _rootSlot = userSpace.AddSlot("Reference Replacement Dialog");
+        _rootSlot = dialogSlot ?? throw new ArgumentNullException(nameof(dialogSlot));
         _rootSlot.Destroyed += OnSlotDestroyed;
         ClearSlot(_rootSlot);
 
@@ -39,9 +41,9 @@ public sealed class ReferenceReplacementDialog
         RepositionFor(owner);
     }
 
-    public static ReferenceReplacementDialog Create(User owner)
+    public static ReferenceReplacementDialog Create(User owner, Slot dialogSlot)
     {
-        return new ReferenceReplacementDialog(owner);
+        return new ReferenceReplacementDialog(owner, dialogSlot);
     }
 
     public bool HasProcessRoot => GetProcessRootSlot() != null;
@@ -217,7 +219,7 @@ public sealed class ReferenceReplacementDialog
 
     private void Analyze(bool applyChanges)
     {
-        if (!TryResolveInputs(out var root, out var source, out var target, out var errorMessage))
+        if (!TryResolveInputs(out Slot root, out IWorldElement source, out IWorldElement target, out string errorMessage))
         {
             UpdateStatus(errorMessage);
             return;

@@ -1,7 +1,11 @@
 using System;
+
 using FrooxEngine;
+
 using HarmonyLib;
+
 using ReferenceReplacement.UI;
+
 using ResoniteModLoader;
 #if USE_RESONITE_HOT_RELOAD_LIB
 using ResoniteHotReloadLib;

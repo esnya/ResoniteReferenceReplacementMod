@@ -11,21 +11,7 @@ internal static class ReferenceReplacementEntryPoint
             return;
         }
 
-        User? localUser = creationSlot.World?.LocalUser;
-        if (localUser == null)
-        {
-            creationSlot.Destroy();
-            return;
-        }
-
-        try
-        {
-            ReferenceReplacementDialogManager.Show(localUser);
-        }
-        finally
-        {
-            creationSlot.Destroy();
-        }
+        ReferenceReplacementDialogManager.Show(creationSlot);
     }
 
 }

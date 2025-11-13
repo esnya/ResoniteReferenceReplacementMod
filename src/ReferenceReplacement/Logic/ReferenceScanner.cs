@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+
 using FrooxEngine;
 
 namespace ReferenceReplacement.Logic;
@@ -13,7 +14,7 @@ internal static class ReferenceScanner
     {
         ArgumentNullException.ThrowIfNull(root);
 
-        var session = new ReferenceScanSession(source, target);
+        ReferenceScanSession session = new(source, target);
         session.VisitSlot(root, TraversalPath.FromSlot(root));
         return session.BuildResult();
     }
@@ -22,8 +23,8 @@ internal static class ReferenceScanner
     {
         ArgumentNullException.ThrowIfNull(blueprintRoot);
 
-        var session = new ReferenceScanSession(source, target);
-        session.VisitBlueprint(blueprintRoot, new TraversalPath(blueprintRoot.Label));
+        ReferenceScanSession session = new(source, target);
+        session.VisitBlueprint(blueprintRoot, new(blueprintRoot.Label));
         return session.BuildResult();
     }
 
@@ -369,10 +370,10 @@ internal sealed record HierarchyBlueprint(string Label, IReadOnlyList<ISyncMembe
 {
     public static HierarchyBlueprint Create(string label, IEnumerable<ISyncMember> members, IEnumerable<HierarchyBlueprint>? children = null)
     {
-        var memberList = members is IReadOnlyList<ISyncMember> readyMembers
+        IReadOnlyList<ISyncMember> memberList = members is IReadOnlyList<ISyncMember> readyMembers
             ? readyMembers
             : new List<ISyncMember>(members ?? Array.Empty<ISyncMember>());
-        var childList = children is IReadOnlyList<HierarchyBlueprint> readyChildren
+        IReadOnlyList<HierarchyBlueprint> childList = children is IReadOnlyList<HierarchyBlueprint> readyChildren
             ? readyChildren
             : new List<HierarchyBlueprint>(children ?? Array.Empty<HierarchyBlueprint>());
         return new HierarchyBlueprint(label, memberList, childList);

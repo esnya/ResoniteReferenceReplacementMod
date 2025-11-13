@@ -2,9 +2,13 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+
 using Elements.Core;
+
 using FrooxEngine;
+
 using ReferenceReplacement.Logic;
+
 using Xunit;
 
 namespace ReferenceReplacement.Tests;
@@ -14,14 +18,14 @@ public class ReferenceScannerTests
     [Fact]
     public void ScanFindsDirectMatches()
     {
-        var source = new FakeWorldElement("Source");
-        var replacement = new FakeWorldElement("Replacement");
-        var syncRef = new FakeSyncRef("SlotRef", typeof(FakeWorldElement), source);
-        var blueprint = HierarchyBlueprint.Create("Root", new[] { syncRef });
+        FakeWorldElement source = new("Source");
+        FakeWorldElement replacement = new("Replacement");
+        FakeSyncRef syncRef = new("SlotRef", typeof(FakeWorldElement), source);
+        HierarchyBlueprint blueprint = HierarchyBlueprint.Create("Root", new[] { syncRef });
 
         ReferenceScanResult result = ReferenceScanner.Scan(blueprint, source, replacement);
 
-        var match = Assert.Single(result.Matches);
+        SyncReferenceMatch match = Assert.Single(result.Matches);
         Assert.Equal(syncRef, match.SyncRef);
         Assert.Equal("Root.SlotRef", match.Path);
         Assert.Equal(1, result.VisitedMembers);
@@ -31,10 +35,10 @@ public class ReferenceScannerTests
     [Fact]
     public void ScanCountsIncompatibleTargets()
     {
-        var source = new FakeWorldElement("Source");
-        var replacement = new FakeWorldElement("Replacement");
-        var syncRef = new FakeSyncRef("SlotRef", typeof(SpecialWorldElement), source);
-        var blueprint = HierarchyBlueprint.Create("Root", new[] { syncRef });
+        FakeWorldElement source = new("Source");
+        FakeWorldElement replacement = new("Replacement");
+        FakeSyncRef syncRef = new("SlotRef", typeof(SpecialWorldElement), source);
+        HierarchyBlueprint blueprint = HierarchyBlueprint.Create("Root", new[] { syncRef });
 
         ReferenceScanResult result = ReferenceScanner.Scan(blueprint, source, replacement);
 
@@ -46,63 +50,63 @@ public class ReferenceScannerTests
     [Fact]
     public void ScanTraversesNestedEnumerables()
     {
-        var source = new FakeWorldElement("Source");
-        var replacement = new FakeWorldElement("Replacement");
-        var nestedRef = new FakeSyncRef("Nested", typeof(FakeWorldElement), source);
-        var enumerableMember = new FakeSyncEnumerable("Collection", nestedRef);
-        var blueprint = HierarchyBlueprint.Create(
+        FakeWorldElement source = new("Source");
+        FakeWorldElement replacement = new("Replacement");
+        FakeSyncRef nestedRef = new("Nested", typeof(FakeWorldElement), source);
+        FakeSyncEnumerable enumerableMember = new("Collection", nestedRef);
+        HierarchyBlueprint blueprint = HierarchyBlueprint.Create(
             "Root",
             new ISyncMember[] { enumerableMember },
             Array.Empty<HierarchyBlueprint>());
 
         ReferenceScanResult result = ReferenceScanner.Scan(blueprint, source, replacement);
 
-        var match = Assert.Single(result.Matches);
+        SyncReferenceMatch match = Assert.Single(result.Matches);
         Assert.Equal("Root.Collection[0]", match.Path);
     }
 
     [Fact]
     public void ScanTraversesSyncListElements()
     {
-        var source = new FakeWorldElement("Source");
-        var replacement = new FakeWorldElement("Replacement");
-        var nestedRef = new FakeSyncRef("Nested", typeof(FakeWorldElement), source);
-        var syncList = new FakeSyncList("List", nestedRef);
-        var blueprint = HierarchyBlueprint.Create("Root", new ISyncMember[] { syncList }, Array.Empty<HierarchyBlueprint>());
+        FakeWorldElement source = new("Source");
+        FakeWorldElement replacement = new("Replacement");
+        FakeSyncRef nestedRef = new("Nested", typeof(FakeWorldElement), source);
+        FakeSyncList syncList = new("List", nestedRef);
+        HierarchyBlueprint blueprint = HierarchyBlueprint.Create("Root", new ISyncMember[] { syncList }, Array.Empty<HierarchyBlueprint>());
 
         ReferenceScanResult result = ReferenceScanner.Scan(blueprint, source, replacement);
 
-        var match = Assert.Single(result.Matches);
+        SyncReferenceMatch match = Assert.Single(result.Matches);
         Assert.Equal("Root.List.Elements[0]", match.Path);
     }
 
     [Fact]
     public void ScanTraversesSyncDictionaryValues()
     {
-        var source = new FakeWorldElement("Source");
-        var replacement = new FakeWorldElement("Replacement");
-        var nestedRef = new FakeSyncRef("Nested", typeof(FakeWorldElement), source);
-        var dictionary = new FakeSyncDictionary("Dict", new KeyValuePair<object, ISyncMember>("Key", nestedRef));
-        var blueprint = HierarchyBlueprint.Create("Root", new ISyncMember[] { dictionary }, Array.Empty<HierarchyBlueprint>());
+        FakeWorldElement source = new("Source");
+        FakeWorldElement replacement = new("Replacement");
+        FakeSyncRef nestedRef = new("Nested", typeof(FakeWorldElement), source);
+        FakeSyncDictionary dictionary = new("Dict", new KeyValuePair<object, ISyncMember>("Key", nestedRef));
+        HierarchyBlueprint blueprint = HierarchyBlueprint.Create("Root", new ISyncMember[] { dictionary }, Array.Empty<HierarchyBlueprint>());
 
         ReferenceScanResult result = ReferenceScanner.Scan(blueprint, source, replacement);
 
-        var match = Assert.Single(result.Matches);
+        SyncReferenceMatch match = Assert.Single(result.Matches);
         Assert.Equal("Root.Dict.BoxedEntries[0]", match.Path);
     }
 
     [Fact]
     public void ScanTraversesSyncArrayItems()
     {
-        var source = new FakeWorldElement("Source");
-        var replacement = new FakeWorldElement("Replacement");
-        var nestedRef = new FakeSyncRef("Nested", typeof(FakeWorldElement), source);
-        var arrayMember = new FakeSyncArray("Array", nestedRef);
-        var blueprint = HierarchyBlueprint.Create("Root", new ISyncMember[] { arrayMember }, Array.Empty<HierarchyBlueprint>());
+        FakeWorldElement source = new("Source");
+        FakeWorldElement replacement = new("Replacement");
+        FakeSyncRef nestedRef = new("Nested", typeof(FakeWorldElement), source);
+        FakeSyncArray arrayMember = new("Array", nestedRef);
+        HierarchyBlueprint blueprint = HierarchyBlueprint.Create("Root", new ISyncMember[] { arrayMember }, Array.Empty<HierarchyBlueprint>());
 
         ReferenceScanResult result = ReferenceScanner.Scan(blueprint, source, replacement);
 
-        var match = Assert.Single(result.Matches);
+        SyncReferenceMatch match = Assert.Single(result.Matches);
         Assert.Equal("Root.Array.Items[0]", match.Path);
     }
 
@@ -121,7 +125,10 @@ public class ReferenceScannerTests
         public bool IsPersistent { get; set; }
         public bool IsRemoved { get; set; }
 
-        public void ChildChanged(IWorldElement child) { }
+        public void ChildChanged(IWorldElement child)
+        {
+            _ = child;
+        }
         public DataTreeNode Save(SaveControl control) => throw new NotSupportedException();
         public void Load(DataTreeNode data, LoadControl control) => throw new NotSupportedException();
         public string GetSyncMemberName(ISyncMember syncMember) => syncMember?.Name ?? string.Empty;
@@ -166,16 +173,51 @@ public class ReferenceScannerTests
             remove { }
         }
 
-        public void Initialize(World world, IWorldElement element) { }
+        public void Initialize(World world, IWorldElement element)
+        {
+            _ = world;
+            _ = element;
+        }
+
         public void Dispose() { }
-        public void CopyValues(ISyncMember other) { }
-        public void CopyValues(ISyncMember other, Action<ISyncMember, ISyncMember> copier) { }
+
+        public void CopyValues(ISyncMember other)
+        {
+            _ = other;
+        }
+
+        public void CopyValues(ISyncMember other, Action<ISyncMember, ISyncMember> copier)
+        {
+            _ = other;
+            _ = copier;
+        }
+
         public void EndInitPhase() { }
-        public void Link(ILinkRef link) { }
-        public void InheritLink(ILinkRef link) { }
-        public void ReleaseLink(ILinkRef link) { }
-        public void ReleaseInheritedLink(ILinkRef link) { }
-        public void ChildChanged(IWorldElement child) { }
+
+        public void Link(ILinkRef link)
+        {
+            _ = link;
+        }
+
+        public void InheritLink(ILinkRef link)
+        {
+            _ = link;
+        }
+
+        public void ReleaseLink(ILinkRef link)
+        {
+            _ = link;
+        }
+
+        public void ReleaseInheritedLink(ILinkRef link)
+        {
+            _ = link;
+        }
+
+        public void ChildChanged(IWorldElement child)
+        {
+            _ = child;
+        }
         public DataTreeNode Save(SaveControl control) => throw new NotSupportedException();
         public void Load(DataTreeNode data, LoadControl control) => throw new NotSupportedException();
         public string GetSyncMemberName(ISyncMember syncMember) => syncMember?.Name ?? string.Empty;
@@ -289,7 +331,12 @@ public class ReferenceScannerTests
 
         public ISyncMember TryGetMember(object key)
         {
-            return _lookup.TryGetValue(key, out var value) ? value : throw new KeyNotFoundException();
+            if (_lookup.TryGetValue(key, out ISyncMember? value) && value != null)
+            {
+                return value;
+            }
+
+            throw new KeyNotFoundException();
         }
 
         public event SyncDictionaryElementEvent? ElementAdded

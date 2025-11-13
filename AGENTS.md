@@ -12,6 +12,7 @@ This file is **authoritative and persistent** for everything under `/ReferenceRe
    - Private, potentially sensitive research (e.g., raw assembly dumps, exploratory notes) must live under the git-ignored `local_notes/` directory, each topic in its own markdown file to keep knowledge granular.
 5. **Persistence:** Any change to policies/workflow must be reflected here immediately. Subdirectories inherit these rules unless they define their own `AGENTS.md`.
 6. **Data model constraints:** This mod must not introduce new FrooxEngine data-model types or `SyncDelegate` definitions. All functionality must be built on existing data-model constructs to avoid sync registration overhead.
+7. **Design notes ban:** Do not create standalone design notes or ADR-style docs; instead, keep commits and code self-explanatory and update this AGENTS file if process rules change.
 
 ## Scope / Status
 
