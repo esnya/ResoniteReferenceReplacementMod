@@ -174,16 +174,11 @@ public sealed class ReferenceReplacementDialog
 
     private void BuildPanel(UIBuilder ui)
     {
-        colorX panelTint = new(0.08f, 0.08f, 0.1f, 0.92f);
-        var panel = ui.Panel(in panelTint, zwrite: false);
-        ui.NestInto(panel.RectTransform);
         ui.VerticalLayout(10f, 20f, Alignment.TopLeft);
 
         BuildReferenceEditors(ui);
         BuildActionButtons(ui);
         BuildStatusSection(ui);
-
-        ui.NestOut();
     }
 
     private void BuildReferenceEditors(UIBuilder ui)
