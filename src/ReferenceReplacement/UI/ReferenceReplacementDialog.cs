@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 using Elements.Core;
 
@@ -34,48 +33,31 @@ public sealed class ReferenceReplacementDialog
             return;
         }
 
-        _ = Create(localUser, creationSlot);
+        ReferenceReplacementDialog dialog = new(creationSlot);
+        dialog.PositionFor(localUser);
     }
 
-    private ReferenceReplacementDialog(User owner, Slot dialogSlot)
+    private ReferenceReplacementDialog(Slot dialogSlot)
     {
-        ArgumentNullException.ThrowIfNull(owner);
         _rootSlot = dialogSlot ?? throw new ArgumentNullException(nameof(dialogSlot));
         _rootSlot.Destroyed += OnSlotDestroyed;
-        ClearSlot(_rootSlot);
 
         (_processRootRef, _sourceRef, _targetRef) = CreateReferenceFields();
 
         ConfigureRootSlot();
         BuildUI();
         UpdateStatus("Select inputs to begin.");
-        Focus();
-        RepositionFor(owner);
     }
 
-    public static ReferenceReplacementDialog Create(User owner, Slot dialogSlot)
-    {
-        return new ReferenceReplacementDialog(owner, dialogSlot);
-    }
+    private bool IsAlive => !_disposed && !_rootSlot.IsDestroyed && !_rootSlot.IsRemoved;
 
-    public bool IsAlive => !_disposed && !_rootSlot.IsDestroyed && !_rootSlot.IsRemoved;
-
-    public void Focus()
-    {
-        if (IsAlive)
-        {
-            _rootSlot.OrderOffset = DateTime.UtcNow.Ticks;
-        }
-    }
-
-    public void RepositionFor(User? user)
+    private void PositionFor(User? user)
     {
         if (user == null || !IsAlive)
         {
             return;
         }
 
-        ResetRootTransform();
         _rootSlot.PositionInFrontOfUser(float3.Backward);
         if (user.LocalUserRoot != null)
         {
@@ -354,22 +336,4 @@ public sealed class ReferenceReplacementDialog
         }
     }
 
-    private static void ClearSlot(Slot slot)
-    {
-        foreach (Slot child in slot.Children.ToArray())
-        {
-            child.Destroy();
-        }
-
-        foreach (Component component in slot.Components.ToArray())
-        {
-            component.Destroy();
-        }
-    }
-
-    private void ResetRootTransform()
-    {
-        _rootSlot.LocalPosition = float3.Zero;
-        _rootSlot.LocalRotation = floatQ.Identity;
-    }
 }
