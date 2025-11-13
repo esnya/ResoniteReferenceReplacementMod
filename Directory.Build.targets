@@ -1,0 +1,6 @@
+<Project>
+  <Target Name="EnsureResoniteAssembliesDir" BeforeTargets="ResolveReferences">
+    <Error Condition="'$(ResoniteAssembliesDir)'==''" Text="ResoniteAssembliesDir must be set (or install Resonite under ./Resonite, the default Steam Windows path, or ~/.steam/steam/steamapps/common/Resonite/ for auto-detection)." />
+    <Error Condition="!Exists('$(ResolvedResoniteAssembliesDir)/FrooxEngine.dll')" Text="Cannot find FrooxEngine.dll under $(ResolvedResoniteAssembliesDir)." />
+  </Target>
+</Project>

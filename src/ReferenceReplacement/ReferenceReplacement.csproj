@@ -19,15 +19,6 @@
     <DefineConstants>$(DefineConstants);USE_RESONITE_HOT_RELOAD_LIB</DefineConstants>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(ResoniteAssembliesDir)'!=''">
-    <ResolvedResoniteAssembliesDir>$([System.IO.Path]::GetFullPath('$(ResoniteAssembliesDir)'))</ResolvedResoniteAssembliesDir>
-  </PropertyGroup>
-
-  <Target Name="EnsureResoniteAssembliesDir" BeforeTargets="ResolveReferences">
-    <Error Condition="'$(ResoniteAssembliesDir)'==''" Text="Set ResoniteAssembliesDir=/absolute/path/to/Resonite/ when invoking dotnet (e.g. dotnet build -p:ResoniteAssembliesDir=../Resonite)." />
-    <Error Condition="!Exists('$(ResolvedResoniteAssembliesDir)/FrooxEngine.dll')" Text="Cannot find FrooxEngine.dll under $(ResolvedResoniteAssembliesDir)." />
-  </Target>
-
   <ItemGroup>
     <Reference Include="ResoniteModLoader">
       <HintPath>$(ResolvedResoniteAssembliesDir)/Libraries/ResoniteModLoader.dll</HintPath>
@@ -62,8 +53,32 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(CopyToMods)'=='true'">
-    <Message Text="Copying $(TargetFileName) to $(ResolvedResoniteAssembliesDir)/rml_mods" Importance="high" />
-    <Copy SourceFiles="$(TargetDir)$(TargetFileName)" DestinationFolder="$(ResolvedResoniteAssembliesDir)/rml_mods" ContinueOnError="true" />
+    <PropertyGroup>
+      <_ResoniteModsDir>$(ResolvedResoniteAssembliesDir)/rml_mods</_ResoniteModsDir>
+      <_HotReloadModsDir>$(_ResoniteModsDir)/HotReloadMods</_HotReloadModsDir>
+      <_BuiltAssembly>$(TargetDir)$(TargetFileName)</_BuiltAssembly>
+      <_HotReloadCopyEnabled>false</_HotReloadCopyEnabled>
+      <_HotReloadCopyEnabled Condition="'$(EnableResoniteHotReloadLib)'=='true'">true</_HotReloadCopyEnabled>
+    </PropertyGroup>
+
+    <MakeDir Directories="$(_ResoniteModsDir)" Condition="!Exists('$(_ResoniteModsDir)')" />
+
+    <Message Text="Copying $(TargetFileName) to $(_ResoniteModsDir) (up to 2 retries; failures become warnings while Resonite is running)." Importance="high" />
+    <Copy SourceFiles="$(_BuiltAssembly)"
+          DestinationFiles="$(_ResoniteModsDir)/$(TargetFileName)"
+          SkipUnchangedFiles="true"
+          Retries="2"
+          RetryDelayMilliseconds="250"
+          ContinueOnError="true" />
+
+    <Message Text="Copying $(TargetFileName) to $(_HotReloadModsDir) for ResoniteHotReloadLib." Importance="high" Condition="$(_HotReloadCopyEnabled)" />
+    <MakeDir Directories="$(_HotReloadModsDir)" Condition="$(_HotReloadCopyEnabled)" />
+    <Copy Condition="$(_HotReloadCopyEnabled)"
+          SourceFiles="$(_BuiltAssembly)"
+          DestinationFiles="$(_HotReloadModsDir)/$(TargetFileName)"
+          SkipUnchangedFiles="true"
+          Retries="1"
+          RetryDelayMilliseconds="100" />
   </Target>
 
 </Project>

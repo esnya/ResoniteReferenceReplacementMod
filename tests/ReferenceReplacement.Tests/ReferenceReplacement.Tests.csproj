@@ -7,13 +7,6 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <ResoniteAssembliesDir Condition="'$(ResoniteAssembliesDir)'==''">$(MSBuildThisFileDirectory)..\..\Resonite\</ResoniteAssembliesDir>
-  </PropertyGroup>
-
-  <Target Name="EnsureResoniteAssembliesDir" BeforeTargets="ResolveReferences">
-    <Error Condition="'$(ResoniteAssembliesDir)'==''" Text="Set ResoniteAssembliesDir when running tests." />
-  </Target>
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.2" />
