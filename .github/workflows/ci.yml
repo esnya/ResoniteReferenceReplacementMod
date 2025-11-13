@@ -67,7 +67,7 @@ jobs:
         shell: bash
         run: |
           dotnet format ReferenceReplacement.sln --verify-no-changes --no-restore \
-            -p:ResoniteAssembliesDir="${{ steps.resonite.outputs.resonite-path }}"
+            --property ResoniteAssembliesDir="${{ steps.resonite.outputs.resonite-path }}"
 
       - name: Build
         shell: bash
