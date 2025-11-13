@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Elements.Core;
 using FrooxEngine;
 using FrooxEngine.UIX;
@@ -133,50 +134,90 @@ public sealed class ReferenceReplacementDialog
     private void ConfigureRootSlot()
     {
         _rootSlot.OrderOffset = DateTime.UtcNow.Ticks;
-        _rootSlot.LocalScale = new float3(1f, 1f, 1f);
+        _rootSlot.LocalScale = new float3(0.0005f, 0.0005f, 0.0005f);
         _rootSlot.PersistentSelf = false;
-
-        _rootSlot.AttachComponent<Canvas>();
-
-        var rectTransform = _rootSlot.AttachComponent<RectTransform>();
-        rectTransform.AnchorMin.Value = new float2(0.5f, 0.5f);
-        rectTransform.AnchorMax.Value = new float2(0.5f, 0.5f);
-        rectTransform.OffsetMin.Value = new float2(-450f, -260f);
-        rectTransform.OffsetMax.Value = new float2(450f, 260f);
+        _rootSlot.AttachComponent<ObjectRoot>();
+        _rootSlot.Tag = "Developer";
     }
 
     private void BuildUI()
     {
-        var ui = new UIBuilder(_rootSlot);
-        ui.Style.MinHeight = 28f;
-        ui.Style.MinWidth = 120f;
-
-        BuildPanel(ui);
-    }
-
-    private void BuildPanel(UIBuilder ui)
-    {
-        colorX panelTint = new(0.08f, 0.08f, 0.1f, 0.92f);
-        var panel = ui.Panel(in panelTint, zwrite: false);
-        ui.NestInto(panel.RectTransform);
-        ui.VerticalLayout(10f, 20f, Alignment.TopLeft);
-
-        BuildHeader(ui);
-        BuildReferenceEditors(ui);
-        BuildActionButtons(ui);
-        BuildStatusSection(ui);
-
-        ui.NestOut();
-    }
-
-    private static void BuildHeader(UIBuilder ui)
-    {
         LocaleString title = (LocaleString)"Reference Replacement";
-        ui.Text(in title, size: 36, bestFit: false, alignment: Alignment.MiddleLeft, parseRTF: false);
+        UIBuilder frameBuilder = RadiantUI_Panel.SetupPanel(_rootSlot, title, new float2(1200f, 900f));
+        RadiantUI_Constants.SetupEditorStyle(frameBuilder, extraPadding: true);
+        frameBuilder.Style.MinHeight = 32f;
+        frameBuilder.Style.MinWidth = 160f;
 
-        LocaleString subtitle = (LocaleString)"Scan a slot tree and replace every SyncRef that points to your source.";
-        ui.Text(in subtitle, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false, nullContent: string.Empty);
-        ui.Spacer(6f);
+        Canvas? canvas = _rootSlot.GetComponent<Canvas>();
+        if (canvas != null)
+        {
+            canvas.MarkDeveloper();
+            canvas.AcceptPhysicalTouch.Value = false;
+        }
+
+        List<RectTransform> columns = frameBuilder.SplitHorizontally(0.42f, 0.58f, 0.02f);
+        BuildInputColumn(columns[0]);
+        BuildAnalysisColumn(columns[1]);
+    }
+
+    private void BuildInputColumn(RectTransform column)
+    {
+        UIBuilder columnBuilder = CreateSection(column, RadiantUI_Constants.Neutrals.MID.SetA(0.9f));
+        LocaleString heading = (LocaleString)"Inputs";
+        columnBuilder.Text(in heading, size: 32, bestFit: false, alignment: Alignment.MiddleLeft);
+
+        LocaleString hint = (LocaleString)"Pick the tree to scan, the SyncRef source, and the replacement target.";
+        columnBuilder.Text(in hint, size: 24, bestFit: false, alignment: Alignment.TopLeft);
+        columnBuilder.Spacer(6f);
+
+        columnBuilder.ScrollArea();
+        columnBuilder.VerticalLayout(6f, 12f);
+        columnBuilder.FitContent(SizeFit.Disabled, SizeFit.MinSize);
+
+        BuildReferenceEditors(columnBuilder);
+        columnBuilder.NestOut();
+    }
+
+    private void BuildAnalysisColumn(RectTransform column)
+    {
+        UIBuilder columnBuilder = CreateSection(column, RadiantUI_Constants.Neutrals.MID.SetA(0.9f));
+        columnBuilder.HorizontalHeader(56f, out RectTransform header, out RectTransform content);
+
+        var headerBuilder = new UIBuilder(header);
+        RadiantUI_Constants.SetupEditorStyle(headerBuilder, extraPadding: true);
+        LocaleString heading = (LocaleString)"Analysis";
+        headerBuilder.Text(in heading, size: 32, bestFit: false, alignment: Alignment.MiddleLeft);
+        LocaleString detail = (LocaleString)"Review status and run replacements.";
+        headerBuilder.Text(in detail, size: 24, bestFit: false, alignment: Alignment.MiddleLeft);
+
+        var bodyBuilder = new UIBuilder(content);
+        RadiantUI_Constants.SetupEditorStyle(bodyBuilder, extraPadding: true);
+        bodyBuilder.HorizontalFooter(80f, out RectTransform footer, out RectTransform bodyContent);
+
+        var statusBuilder = new UIBuilder(bodyContent);
+        RadiantUI_Constants.SetupEditorStyle(statusBuilder, extraPadding: true);
+        statusBuilder.ScrollArea();
+        statusBuilder.VerticalLayout(6f, 12f);
+        statusBuilder.FitContent(SizeFit.Disabled, SizeFit.MinSize);
+        BuildStatusSection(statusBuilder);
+
+        var footerBuilder = new UIBuilder(footer);
+        RadiantUI_Constants.SetupEditorStyle(footerBuilder, extraPadding: true);
+        BuildActionButtons(footerBuilder);
+
+        columnBuilder.NestOut();
+    }
+
+    private static UIBuilder CreateSection(RectTransform target, colorX tint)
+    {
+        var builder = new UIBuilder(target.Slot);
+        RadiantUI_Constants.SetupEditorStyle(builder, extraPadding: true);
+        Image panel = builder.Panel(tint);
+        panel.Sprite.Target = builder.Style.ButtonSprite;
+        panel.NineSliceSizing.Value = builder.Style.NineSliceSizing;
+        builder.NestInto(panel.RectTransform);
+        builder.VerticalLayout(8f, 16f, Alignment.TopLeft);
+        return builder;
     }
 
     private void BuildReferenceEditors(UIBuilder ui)
@@ -201,6 +242,8 @@ public sealed class ReferenceReplacementDialog
     private void BuildActionButtons(UIBuilder ui)
     {
         ui.HorizontalLayout(8f);
+        ui.Style.MinHeight = 48f;
+        ui.Style.FlexibleWidth = 1f;
 
         LocaleString analyzeLabel = (LocaleString)"Analyze";
         ui.Button(in analyzeLabel).LocalPressed += (_, __) => Analyze(applyChanges: false);
@@ -210,18 +253,16 @@ public sealed class ReferenceReplacementDialog
 
         LocaleString closeLabel = (LocaleString)"Close";
         ui.Button(in closeLabel).LocalPressed += (_, __) => Close();
-
         ui.NestOut();
-        ui.Spacer(6f);
     }
 
     private void BuildStatusSection(UIBuilder ui)
     {
         LocaleString statusHeading = (LocaleString)"Status";
-        ui.Text(in statusHeading, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false, nullContent: string.Empty);
+        ui.Text(in statusHeading, size: 28, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false);
 
         LocaleString statusContent = (LocaleString)"Waiting for analysis.";
-        _statusText = ui.Text(in statusContent, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false, nullContent: string.Empty);
+        _statusText = ui.Text(in statusContent, size: 24, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false);
 
         LocaleString detail = (LocaleString)string.Empty;
         _detailText = ui.Text(in detail, size: 24, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false);

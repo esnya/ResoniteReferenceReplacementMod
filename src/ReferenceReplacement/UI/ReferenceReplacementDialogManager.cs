@@ -11,7 +11,7 @@ internal static class ReferenceReplacementDialogManager
 
     public static void Show(User user, Slot? suggestedRoot)
     {
-        if (user == null)
+        if (user == null || user.LocalUserSpace == null)
         {
             return;
         }
@@ -20,7 +20,7 @@ internal static class ReferenceReplacementDialogManager
 
         if (Dialogs.TryGetValue(user.ReferenceID, out var weakReference))
         {
-            if (weakReference.TryGetTarget(out var existing) && existing?.Slot != null && IsSlotAlive(existing.Slot))
+            if (weakReference.TryGetTarget(out var existing) && existing != null && existing.IsAlive)
             {
                 existing.Focus();
                 if (!existing.HasProcessRoot && suggestedRoot != null)
@@ -34,10 +34,7 @@ internal static class ReferenceReplacementDialogManager
             Dialogs.Remove(user.ReferenceID);
         }
 
-        Slot dialogSlot = user.LocalUserSpace.AddSlot("Reference Replacement Dialog");
-
-        var dialog = dialogSlot.AttachComponent<ReferenceReplacementDialog>();
-        dialog.Initialize(user, suggestedRoot);
+        ReferenceReplacementDialog dialog = ReferenceReplacementDialog.Create(user, suggestedRoot);
         Dialogs[user.ReferenceID] = new WeakReference<ReferenceReplacementDialog>(dialog);
     }
 
@@ -64,7 +61,7 @@ internal static class ReferenceReplacementDialogManager
         List<RefID> stale = new();
         foreach (var (key, weak) in Dialogs)
         {
-            if (!weak.TryGetTarget(out var dialog) || dialog == null || !IsSlotAlive(dialog.Slot))
+            if (!weak.TryGetTarget(out var dialog) || dialog == null || !dialog.IsAlive)
             {
                 stale.Add(key);
             }
@@ -74,10 +71,5 @@ internal static class ReferenceReplacementDialogManager
         {
             Dialogs.Remove(key);
         }
-    }
-
-    private static bool IsSlotAlive(Slot? slot)
-    {
-        return slot != null && !slot.IsDestroyed && !slot.IsRemoved;
     }
 }

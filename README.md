@@ -36,7 +36,7 @@ A ResoniteModLoader plugin that replicates the built-in Asset Optimization workf
 
 ## Design Summary
 - **Entry point:** A Harmony postfix on `DevTool.GenerateMenuItems` adds the context menu button and funnels requests to a singleton dialog manager so only one window per user exists.
-- **UI layer:** A dedicated `ReferenceReplacementDialog` component builds the Asset Optimization style panel with standard `RefMemberEditor` fields, local-only button events, and status readouts.
+- **UI layer:** A dedicated `ReferenceReplacementDialog` controller builds the Asset Optimization style panel with reusable `ReferenceProxy` fields, local-only button events, and status readouts.
 - **Scanning:** `ReferenceScanner` walks the process root, every child slot, and every component’s sync members. It recursively descends through `ISyncRef`, `SyncRefList`, `SyncRefDictionary`, and other enumerable sync containers, capturing every reference that matches the selected source. Paths are tracked for reporting and debugging.
 - **Safety:** Before applying changes, the dialog verifies that root/source/replacement live in the same world and that the source differs from the replacement. Replacement happens within an undo batch (`UndoManagerExtensions.BeginUndoBatch/EndUndoBatch`) so the user can revert in one step, and every incompatible reference is skipped with a counter in the status panel.
 
