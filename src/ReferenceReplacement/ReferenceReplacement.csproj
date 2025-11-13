@@ -11,6 +11,14 @@
     <FileVersion>0.1.0.0</FileVersion>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <EnableResoniteHotReloadLib Condition="'$(EnableResoniteHotReloadLib)'==''">false</EnableResoniteHotReloadLib>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(EnableResoniteHotReloadLib)'=='true'">
+    <DefineConstants>$(DefineConstants);USE_RESONITE_HOT_RELOAD_LIB</DefineConstants>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(ResoniteAssembliesDir)'!=''">
     <ResolvedResoniteAssembliesDir>$([System.IO.Path]::GetFullPath('$(ResoniteAssembliesDir)'))</ResolvedResoniteAssembliesDir>
   </PropertyGroup>
@@ -39,6 +47,10 @@
     </Reference>
     <Reference Include="Renderite.Shared">
       <HintPath>$(ResolvedResoniteAssembliesDir)/Renderite.Shared.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="ResoniteHotReloadLib" Condition="'$(EnableResoniteHotReloadLib)'=='true'">
+      <HintPath>$(ResolvedResoniteAssembliesDir)/rml_libs/ResoniteHotReloadLib.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>

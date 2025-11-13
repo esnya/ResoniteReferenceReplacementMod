@@ -18,6 +18,11 @@ A ResoniteModLoader plugin that replicates the built-in Asset Optimization workf
    ```
    The property must contain the folder with `FrooxEngine.dll`, `Elements.Core.dll`, `rml_libs/0Harmony.dll`, and `Libraries/ResoniteModLoader.dll`. The repo never stores those binaries.
 3. (Optional) Set `CopyToMods=true` to copy the built DLL into `$(ResoniteAssembliesDir)/rml_mods` after each build.
+4. (Optional) To enable hot reload during local development, place `ResoniteHotReloadLib.dll` (and its companion `ResoniteHotReloadLibCore.dll`) under `$(ResoniteAssembliesDir)/rml_libs` and build with `-p:EnableResoniteHotReloadLib=true`. Leave the property unset (default) if the extra assemblies are not available.
+
+### Hot Reload (Optional)
+- Builds compiled with `-p:EnableResoniteHotReloadLib=true` register the mod with [ResoniteHotReloadLib](https://github.com/Nytra/ResoniteHotReloadLib), enabling the Dev Tool’s **Hot Reload Mods** panel to reload it without restarting Resonite.
+- Keep the property unset for CI or clean machines: the mod skips referencing the library entirely, so contributors without the DLL can still build and test normally.
 
 ## Usage
 1. Equip the Dev Tool, target any slot, and open its context menu (default `T`).
