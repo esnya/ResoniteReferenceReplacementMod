@@ -7,91 +7,151 @@ using ReferenceReplacement.Logic;
 
 namespace ReferenceReplacement.UI;
 
-public sealed class ReferenceReplacementDialog : Component
+public sealed class ReferenceReplacementDialog
 {
-    public SyncRef<Slot> ProcessRoot { get; } = new();
-    public SyncRef<IWorldElement> SourceElement { get; } = new();
-    public SyncRef<IWorldElement> TargetElement { get; } = new();
 
-    private readonly SyncRef<Text> _statusText = new();
-    private readonly SyncRef<Text> _detailText = new();
+    private readonly User _owner;
+    private readonly Slot _rootSlot;
+    private readonly ISyncRef _processRootRef;
+    private readonly ISyncRef _sourceRef;
+    private readonly ISyncRef _targetRef;
 
-    public void Initialize(User owner, Slot? suggestedRoot)
+    private Text? _statusText;
+    private Text? _detailText;
+    private bool _disposed;
+
+    private ReferenceReplacementDialog(User owner, Slot? suggestedRoot)
     {
+        _owner = owner ?? throw new ArgumentNullException(nameof(owner));
+        Slot? userSpace = owner.LocalUserSpace ?? throw new InvalidOperationException("User space is unavailable.");
+
+        _rootSlot = userSpace.AddSlot("Reference Replacement Dialog");
+        _rootSlot.Destroyed += OnSlotDestroyed;
+
+        (_processRootRef, _sourceRef, _targetRef) = CreateReferenceFields();
+
+        ConfigureRootSlot();
         BuildUI();
-        if (suggestedRoot != null)
-        {
-            ProcessRoot.Target = suggestedRoot;
-        }
-        else if (owner?.LocalUserSpace != null)
-        {
-            ProcessRoot.Target ??= owner.LocalUserSpace;
-        }
+        InitializeInputs(suggestedRoot);
         UpdateStatus("Select inputs to begin.");
         Focus();
     }
 
-    public bool HasProcessRoot => ProcessRoot.Target != null;
-
-    public void TrySetProcessRoot(Slot slot)
+    public static ReferenceReplacementDialog Create(User owner, Slot? suggestedRoot)
     {
-        if (slot == null)
+        return new ReferenceReplacementDialog(owner, suggestedRoot);
+    }
+
+    public bool HasProcessRoot => GetProcessRootSlot() != null;
+
+    public bool IsAlive => !_disposed && !_rootSlot.IsDestroyed && !_rootSlot.IsRemoved;
+
+    public void Focus()
+    {
+        if (IsAlive)
+        {
+            _rootSlot.OrderOffset = DateTime.UtcNow.Ticks;
+        }
+    }
+
+    public void TrySetProcessRoot(Slot? slot)
+    {
+        if (slot == null || _processRootRef.Target != null)
         {
             return;
         }
 
-        if (ProcessRoot.Target == null)
-        {
-            ProcessRoot.Target = slot;
-        }
-    }
-
-    public void Focus()
-    {
-        if (Slot != null)
-        {
-            Slot.OrderOffset = DateTime.UtcNow.Ticks;
-        }
+        _processRootRef.Target = slot;
     }
 
     public void Close()
     {
-        Slot?.Destroy();
-    }
-
-    protected override void OnDestroy()
-    {
-        ReferenceReplacementDialogManager.Unregister(this);
-        base.OnDestroy();
-    }
-
-    private void BuildUI()
-    {
-        if (Slot == null)
+        if (_disposed)
         {
             return;
         }
 
-        ConfigureRootSlot();
+        _disposed = true;
+        _rootSlot.Destroyed -= OnSlotDestroyed;
 
-        var ui = new UIBuilder(Slot);
-        ui.Style.MinHeight = 28f;
-        ui.Style.MinWidth = 120f;
+        if (!_rootSlot.IsDestroyed && !_rootSlot.IsRemoved)
+        {
+            _rootSlot.Destroy();
+        }
 
-        BuildPanel(ui);
+        ReferenceReplacementDialogManager.Unregister(this);
+    }
+
+    private void InitializeInputs(Slot? suggestedRoot)
+    {
+        if (suggestedRoot != null)
+        {
+            _processRootRef.Target = suggestedRoot;
+        }
+        else if (_owner.LocalUserSpace != null)
+        {
+            _processRootRef.Target ??= _owner.LocalUserSpace;
+        }
+    }
+
+    private (ISyncRef processRoot, ISyncRef source, ISyncRef target) CreateReferenceFields()
+    {
+        return (CreateReferenceProxy(), CreateReferenceProxy(), CreateReferenceProxy());
+    }
+
+    private ISyncRef CreateReferenceProxy()
+    {
+        var proxy = _rootSlot.AttachComponent<ReferenceProxy>();
+        proxy.Persistent = false;
+        return ExtractSyncRef(proxy);
+    }
+
+    private static ISyncRef ExtractSyncRef(ReferenceProxy proxy)
+    {
+        foreach (ISyncMember member in proxy.SyncMembers)
+        {
+            if (member is ISyncRef syncRef)
+            {
+                return syncRef;
+            }
+        }
+
+        throw new MissingMemberException(typeof(ReferenceProxy).FullName, "Reference");
+    }
+
+    private void OnSlotDestroyed(IDestroyable _)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        ReferenceReplacementDialogManager.Unregister(this);
     }
 
     private void ConfigureRootSlot()
     {
-        Slot!.OrderOffset = DateTime.UtcNow.Ticks;
-        Slot.LocalScale = new float3(1f, 1f, 1f);
-        Slot.AttachComponent<Canvas>();
+        _rootSlot.OrderOffset = DateTime.UtcNow.Ticks;
+        _rootSlot.LocalScale = new float3(1f, 1f, 1f);
+        _rootSlot.PersistentSelf = false;
 
-        var rectTransform = Slot.AttachComponent<RectTransform>();
+        _rootSlot.AttachComponent<Canvas>();
+
+        var rectTransform = _rootSlot.AttachComponent<RectTransform>();
         rectTransform.AnchorMin.Value = new float2(0.5f, 0.5f);
         rectTransform.AnchorMax.Value = new float2(0.5f, 0.5f);
         rectTransform.OffsetMin.Value = new float2(-450f, -260f);
         rectTransform.OffsetMax.Value = new float2(450f, 260f);
+    }
+
+    private void BuildUI()
+    {
+        var ui = new UIBuilder(_rootSlot);
+        ui.Style.MinHeight = 28f;
+        ui.Style.MinWidth = 120f;
+
+        BuildPanel(ui);
     }
 
     private void BuildPanel(UIBuilder ui)
@@ -121,9 +181,9 @@ public sealed class ReferenceReplacementDialog : Component
 
     private void BuildReferenceEditors(UIBuilder ui)
     {
-        BuildReferenceEditor(ui, "Process root (Slot)", ProcessRoot);
-        BuildReferenceEditor(ui, "Source reference", SourceElement);
-        BuildReferenceEditor(ui, "Replacement reference", TargetElement);
+        BuildReferenceEditor(ui, "Process root (Slot)", _processRootRef);
+        BuildReferenceEditor(ui, "Source reference", _sourceRef);
+        BuildReferenceEditor(ui, "Replacement reference", _targetRef);
         ui.Spacer(8f);
     }
 
@@ -161,10 +221,10 @@ public sealed class ReferenceReplacementDialog : Component
         ui.Text(in statusHeading, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false, nullContent: string.Empty);
 
         LocaleString statusContent = (LocaleString)"Waiting for analysis.";
-        _statusText.Target = ui.Text(in statusContent, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false, nullContent: string.Empty);
+        _statusText = ui.Text(in statusContent, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false, nullContent: string.Empty);
 
         LocaleString detail = (LocaleString)string.Empty;
-        _detailText.Target = ui.Text(in detail, size: 24, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false);
+        _detailText = ui.Text(in detail, size: 24, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false);
     }
 
     private void Analyze(bool applyChanges)
@@ -193,27 +253,35 @@ public sealed class ReferenceReplacementDialog : Component
 
     private bool TryResolveInputs(out Slot root, out IWorldElement source, out IWorldElement target, out string message)
     {
-        root = ProcessRoot.Target;
-        source = SourceElement.Target;
-        target = TargetElement.Target;
+        root = null!;
+        source = null!;
+        target = null!;
 
-        if (root == null)
+        Slot? rootCandidate = GetProcessRootSlot();
+        IWorldElement? sourceCandidate = _sourceRef.Target;
+        IWorldElement? targetCandidate = _targetRef.Target;
+
+        if (rootCandidate == null)
         {
             message = "Process root is required.";
             return false;
         }
 
-        if (source == null)
+        if (sourceCandidate == null)
         {
             message = "Source reference is required.";
             return false;
         }
 
-        if (target == null)
+        if (targetCandidate == null)
         {
             message = "Replacement reference is required.";
             return false;
         }
+
+        root = rootCandidate;
+        source = sourceCandidate;
+        target = targetCandidate;
 
         if (ReferenceEquals(source, target) || source.ReferenceID == target.ReferenceID)
         {
@@ -235,6 +303,11 @@ public sealed class ReferenceReplacementDialog : Component
 
         message = string.Empty;
         return true;
+    }
+
+    private Slot? GetProcessRootSlot()
+    {
+        return _processRootRef.Target as Slot;
     }
 
     private void ApplyReplacement(ReferenceScanResult scanResult, Slot root, IWorldElement target)
@@ -266,18 +339,18 @@ public sealed class ReferenceReplacementDialog : Component
     private void UpdateStatus(string message, ReferenceScanResult? scanResult = null)
     {
         LocaleString status = (LocaleString)message;
-        if (_statusText.Target != null)
+        if (_statusText != null)
         {
-            _statusText.Target.LocaleContent = status;
+            _statusText.LocaleContent = status;
         }
 
-        if (_detailText.Target != null)
+        if (_detailText != null)
         {
             string details = scanResult == null
                 ? string.Empty
                 : $"Visited {scanResult.VisitedMembers} sync members. Last path: {scanResult.LastHitPath ?? "n/a"}";
             LocaleString detailString = (LocaleString)details;
-            _detailText.Target.LocaleContent = detailString;
+            _detailText.LocaleContent = detailString;
         }
     }
 }
