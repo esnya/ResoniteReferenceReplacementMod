@@ -103,14 +103,7 @@ public sealed class ReferenceReplacementDialog
 
     private void InitializeInputs(Slot? suggestedRoot)
     {
-        if (suggestedRoot != null)
-        {
-            _processRootRef.Target = suggestedRoot;
-        }
-        else if (_owner.LocalUserSpace != null)
-        {
-            _processRootRef.Target ??= _owner.LocalUserSpace;
-        }
+        _processRootRef.Target = suggestedRoot ?? null!;
     }
 
     private (ISyncRef processRoot, ISyncRef source, ISyncRef target) CreateReferenceFields()
@@ -186,22 +179,11 @@ public sealed class ReferenceReplacementDialog
         ui.NestInto(panel.RectTransform);
         ui.VerticalLayout(10f, 20f, Alignment.TopLeft);
 
-        BuildHeader(ui);
         BuildReferenceEditors(ui);
         BuildActionButtons(ui);
         BuildStatusSection(ui);
 
         ui.NestOut();
-    }
-
-    private static void BuildHeader(UIBuilder ui)
-    {
-        LocaleString title = (LocaleString)"Reference Replacement";
-        ui.Text(in title, size: 36, bestFit: false, alignment: Alignment.MiddleLeft, parseRTF: false);
-
-        LocaleString subtitle = (LocaleString)"Scan a slot tree and replace every SyncRef that points to your source.";
-        ui.Text(in subtitle, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false, nullContent: string.Empty);
-        ui.Spacer(6f);
     }
 
     private void BuildReferenceEditors(UIBuilder ui)
@@ -214,20 +196,14 @@ public sealed class ReferenceReplacementDialog
 
     private static void BuildReferenceEditor(UIBuilder ui, string label, ISyncRef referenceField)
     {
-        RadiantUI_Constants.SetupEditorStyle(ui, extraPadding: true);
         LocaleString labelString = (LocaleString)label;
-        ui.Text(in labelString, bestFit: false, alignment: Alignment.MiddleLeft, parseRTF: false, nullContent: string.Empty);
-
-        ui.PushStyle();
-        ui.Style.MinHeight = 40f;
+        ui.Text(in labelString);
         ui.RefMemberEditor(referenceField);
-        ui.PopStyle();
     }
 
     private void BuildActionButtons(UIBuilder ui)
     {
         ui.HorizontalLayout(8f);
-        ui.Style.MinHeight = 48f;
 
         LocaleString analyzeLabel = (LocaleString)"Analyze";
         ui.Button(in analyzeLabel).LocalPressed += (_, __) => Analyze(applyChanges: false);
@@ -235,22 +211,19 @@ public sealed class ReferenceReplacementDialog
         LocaleString replaceLabel = (LocaleString)"Replace";
         ui.Button(in replaceLabel).LocalPressed += (_, __) => Analyze(applyChanges: true);
 
-        LocaleString closeLabel = (LocaleString)"Close";
-        ui.Button(in closeLabel).LocalPressed += (_, __) => Close();
-
         ui.NestOut();
     }
 
     private void BuildStatusSection(UIBuilder ui)
     {
         LocaleString statusHeading = (LocaleString)"Status";
-        ui.Text(in statusHeading, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false, nullContent: string.Empty);
+        ui.Text(in statusHeading);
 
         LocaleString statusContent = (LocaleString)"Waiting for analysis.";
-        _statusText = ui.Text(in statusContent, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false, nullContent: string.Empty);
+        _statusText = ui.Text(in statusContent);
 
         LocaleString detail = (LocaleString)string.Empty;
-        _detailText = ui.Text(in detail, size: 24, bestFit: false, alignment: Alignment.TopLeft, parseRTF: false);
+        _detailText = ui.Text(in detail);
     }
 
     private void Analyze(bool applyChanges)
@@ -279,27 +252,35 @@ public sealed class ReferenceReplacementDialog
 
     private bool TryResolveInputs(out Slot root, out IWorldElement source, out IWorldElement target, out string message)
     {
-        root = GetProcessRootSlot()!;
-        source = (IWorldElement)_sourceRef.Target!;
-        target = (IWorldElement)_targetRef.Target!;
+        root = null!;
+        source = null!;
+        target = null!;
 
-        if (root == null)
+        Slot? rootCandidate = GetProcessRootSlot();
+        IWorldElement? sourceCandidate = _sourceRef.Target as IWorldElement;
+        IWorldElement? targetCandidate = _targetRef.Target as IWorldElement;
+
+        if (rootCandidate == null)
         {
             message = "Process root is required.";
             return false;
         }
 
-        if (source == null)
+        if (sourceCandidate == null)
         {
             message = "Source reference is required.";
             return false;
         }
 
-        if (target == null)
+        if (targetCandidate == null)
         {
             message = "Replacement reference is required.";
             return false;
         }
+
+        root = rootCandidate;
+        source = sourceCandidate;
+        target = targetCandidate;
 
         if (ReferenceEquals(source, target) || source.ReferenceID == target.ReferenceID)
         {
