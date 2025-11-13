@@ -63,7 +63,7 @@ public class ReferenceReplacementMod : ResoniteMod
             return;
         }
 
-        DevCreateNewForm.AddAction(CreationMenuCategory, CreationMenuLabel, ReferenceReplacementEntryPoint.OpenFromSlot);
+        DevCreateNewForm.AddAction(CreationMenuCategory, CreationMenuLabel, ReferenceReplacementDialog.OpenFromSlot);
 
         _creationEntryRegistered = true;
     }

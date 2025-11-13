@@ -14,7 +14,6 @@ namespace ReferenceReplacement.UI;
 
 public sealed class ReferenceReplacementDialog
 {
-    private readonly User _owner;
     private readonly Slot _rootSlot;
     private readonly ISyncRef _processRootRef;
     private readonly ISyncRef _sourceRef;
@@ -24,15 +23,28 @@ public sealed class ReferenceReplacementDialog
     private Text? _detailText;
     private bool _disposed;
 
+    public static void OpenFromSlot(Slot creationSlot)
+    {
+        ArgumentNullException.ThrowIfNull(creationSlot);
+
+        User? localUser = creationSlot.World?.LocalUser;
+        if (localUser == null)
+        {
+            creationSlot.Destroy();
+            return;
+        }
+
+        _ = Create(localUser, creationSlot);
+    }
+
     private ReferenceReplacementDialog(User owner, Slot dialogSlot)
     {
-        _owner = owner ?? throw new ArgumentNullException(nameof(owner));
+        ArgumentNullException.ThrowIfNull(owner);
         _rootSlot = dialogSlot ?? throw new ArgumentNullException(nameof(dialogSlot));
         _rootSlot.Destroyed += OnSlotDestroyed;
         ClearSlot(_rootSlot);
 
         (_processRootRef, _sourceRef, _targetRef) = CreateReferenceFields();
-        ClearInputs();
 
         ConfigureRootSlot();
         BuildUI();
@@ -63,7 +75,7 @@ public sealed class ReferenceReplacementDialog
             return;
         }
 
-        PrepareRootSlot(user);
+        ResetRootTransform();
         _rootSlot.PositionInFrontOfUser(float3.Backward);
         if (user.LocalUserRoot != null)
         {
@@ -86,8 +98,6 @@ public sealed class ReferenceReplacementDialog
         {
             _rootSlot.Destroy();
         }
-
-        ReferenceReplacementDialogManager.Unregister(this);
     }
 
     private (ISyncRef processRoot, ISyncRef source, ISyncRef target) CreateReferenceFields()
@@ -97,7 +107,7 @@ public sealed class ReferenceReplacementDialog
 
     private ISyncRef CreateReferenceProxy()
     {
-        var proxy = _rootSlot.AttachComponent<ReferenceProxy>();
+        ReferenceProxy proxy = _rootSlot.AttachComponent<ReferenceProxy>();
         proxy.Persistent = false;
         return ExtractSyncRef(proxy);
     }
@@ -123,7 +133,6 @@ public sealed class ReferenceReplacementDialog
         }
 
         _disposed = true;
-        ReferenceReplacementDialogManager.Unregister(this);
     }
 
     private void ConfigureRootSlot()
@@ -358,21 +367,8 @@ public sealed class ReferenceReplacementDialog
         }
     }
 
-    private void ClearInputs()
+    private void ResetRootTransform()
     {
-        _processRootRef.Target = null!;
-        _sourceRef.Target = null!;
-        _targetRef.Target = null!;
-    }
-
-    private void PrepareRootSlot(User owner)
-    {
-        Slot? parent = owner.LocalUserSpace;
-        if (parent != null && _rootSlot.Parent != parent)
-        {
-            _rootSlot.SetParent(parent, false);
-        }
-
         _rootSlot.LocalPosition = float3.Zero;
         _rootSlot.LocalRotation = floatQ.Identity;
     }

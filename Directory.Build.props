@@ -8,6 +8,7 @@
 
   <PropertyGroup Condition="'$(ResoniteAssembliesDir)'==''">
     <ResoniteAssembliesDir>$(MSBuildThisFileDirectory)Resonite/</ResoniteAssembliesDir>
+    <ResoniteAssembliesDir Condition="Exists('/mnt/c/Program Files (x86)/Steam/steamapps/common/Resonite/')">/mnt/c/Program Files (x86)/Steam/steamapps/common/Resonite/</ResoniteAssembliesDir>
     <ResoniteAssembliesDir Condition="Exists('C:\\Program Files (x86)\\Steam\\steamapps\\common\\Resonite\\')">C:\\Program Files (x86)\\Steam\\steamapps\\common\\Resonite\\</ResoniteAssembliesDir>
     <ResoniteAssembliesDir Condition="Exists('$(HOME)/.steam/steam/steamapps/common/Resonite/')">$(HOME)/.steam/steam/steamapps/common/Resonite/</ResoniteAssembliesDir>
   </PropertyGroup>
