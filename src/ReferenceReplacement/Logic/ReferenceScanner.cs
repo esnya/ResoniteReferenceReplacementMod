@@ -3,9 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using Elements.Core;
 using FrooxEngine;
-using ReferenceReplacement.Infrastructure;
 
 namespace ReferenceReplacement.Logic;
 
@@ -15,51 +13,45 @@ internal static class ReferenceScanner
     {
         ArgumentNullException.ThrowIfNull(root);
 
-        var traversal = new SyncReferenceTraversal(source, target);
-        try
-        {
-            traversal.VisitSlot(root);
-            return traversal.BuildResult();
-        }
-        finally
-        {
-            traversal.Dispose();
-        }
+        var session = new ReferenceScanSession(source, target);
+        session.VisitSlot(root, TraversalPath.FromSlot(root));
+        return session.BuildResult();
     }
 
     internal static ReferenceScanResult Scan(HierarchyBlueprint blueprintRoot, IWorldElement source, IWorldElement target)
     {
         ArgumentNullException.ThrowIfNull(blueprintRoot);
 
-        var traversal = new SyncReferenceTraversal(source, target);
-        try
-        {
-            traversal.VisitBlueprint(blueprintRoot, new TraversalPath(blueprintRoot.Label));
-            return traversal.BuildResult();
-        }
-        finally
-        {
-            traversal.Dispose();
-        }
+        var session = new ReferenceScanSession(source, target);
+        session.VisitBlueprint(blueprintRoot, new TraversalPath(blueprintRoot.Label));
+        return session.BuildResult();
     }
 
-    private sealed class SyncReferenceTraversal : IDisposable
+    private sealed class ReferenceScanSession
     {
-        private readonly ReferenceMatchAccumulator _accumulator;
+        private readonly IWorldElement _source;
+        private readonly IWorldElement _target;
+        private readonly List<SyncReferenceMatch> _matches = new();
+        private readonly HashSet<ISyncRef> _visitedRefs = new();
+        private readonly HashSet<object> _visitedEnumerables = new(ReferenceEqualityComparer.Instance);
 
-        internal SyncReferenceTraversal(IWorldElement source, IWorldElement target)
+        private int _visitedMembers;
+        private int _incompatibleCount;
+        private string? _lastPath;
+
+        internal ReferenceScanSession(IWorldElement source, IWorldElement target)
         {
-            _accumulator = new ReferenceMatchAccumulator(source, target);
+            _source = source ?? throw new ArgumentNullException(nameof(source));
+            _target = target ?? throw new ArgumentNullException(nameof(target));
         }
 
-        internal void VisitSlot(Slot slot)
+        internal void VisitSlot(Slot? slot, TraversalPath path)
         {
             if (slot == null)
             {
                 return;
             }
 
-            TraversalPath path = TraversalPath.FromSlot(slot);
             VisitWorker(slot, path);
             VisitComponents(slot, path);
             VisitChildren(slot, path);
@@ -78,19 +70,16 @@ internal static class ReferenceScanner
             }
         }
 
-        internal ReferenceScanResult BuildResult() => _accumulator.BuildResult();
-
-        public void Dispose()
+        internal ReferenceScanResult BuildResult()
         {
-            _accumulator.Dispose();
+            return new ReferenceScanResult(_matches.ToArray(), _incompatibleCount, _visitedMembers, _lastPath);
         }
 
         private void VisitComponents(Slot slot, TraversalPath parentPath)
         {
             foreach (Component component in slot.Components)
             {
-                TraversalPath componentPath = parentPath.NextComponent(component);
-                VisitWorker(component, componentPath);
+                VisitWorker(component, parentPath.NextComponent(component));
             }
         }
 
@@ -98,16 +87,8 @@ internal static class ReferenceScanner
         {
             foreach (Slot child in slot.Children)
             {
-                TraversalPath childPath = parentPath.NextChild(TraversalPath.DescribeSlot(child));
-                VisitSlot(child, childPath);
+                VisitSlot(child, parentPath.NextChild(TraversalPath.DescribeSlot(child)));
             }
-        }
-
-        private void VisitSlot(Slot slot, TraversalPath path)
-        {
-            VisitWorker(slot, path);
-            VisitComponents(slot, path);
-            VisitChildren(slot, path);
         }
 
         private void VisitWorker(Worker worker, TraversalPath path)
@@ -125,12 +106,19 @@ internal static class ReferenceScanner
 
         private void VisitMember(ISyncMember member, TraversalPath path)
         {
-            if (_accumulator.TryCaptureDirect(member, path))
+            if (member == null)
             {
                 return;
             }
 
-            if (member is IEnumerable enumerable && _accumulator.ShouldVisitEnumerable(enumerable))
+            _visitedMembers++;
+
+            if (TryCapture(member, path))
+            {
+                return;
+            }
+
+            if (member is IEnumerable enumerable && ShouldVisitEnumerable(enumerable))
             {
                 VisitEnumerable(enumerable, path);
             }
@@ -166,7 +154,7 @@ internal static class ReferenceScanner
             {
                 enumerable = accessor();
             }
-            catch (Exception ex) when (IsSafeToIgnore(ex))
+            catch (Exception ex) when (ShouldIgnore(ex))
             {
                 return;
             }
@@ -176,7 +164,7 @@ internal static class ReferenceScanner
                 return;
             }
 
-            if (_accumulator.ShouldVisitEnumerable(enumerable))
+            if (ShouldVisitEnumerable(enumerable))
             {
                 VisitEnumerable(enumerable, parentPath.NextProperty(propertyName));
             }
@@ -189,7 +177,7 @@ internal static class ReferenceScanner
             {
                 count = array.Count;
             }
-            catch (Exception ex) when (IsSafeToIgnore(ex))
+            catch (Exception ex) when (ShouldIgnore(ex))
             {
                 return;
             }
@@ -202,36 +190,13 @@ internal static class ReferenceScanner
                 {
                     element = array.GetElement(index);
                 }
-                catch (Exception ex) when (IsSafeToIgnore(ex))
+                catch (Exception ex) when (ShouldIgnore(ex))
                 {
                     continue;
                 }
 
-                VisitNestedItem(element, itemsPath.NextIndex(index));
+                VisitValue(element, itemsPath.NextIndex(index));
             }
-        }
-
-        private void VisitNestedItem(object? item, TraversalPath path)
-        {
-            if (item == null)
-            {
-                return;
-            }
-
-            switch (item)
-            {
-                case ISyncMember member:
-                    VisitMember(member, path);
-                    break;
-                case IEnumerable nested when _accumulator.ShouldVisitEnumerable(nested):
-                    VisitEnumerable(nested, path);
-                    break;
-            }
-        }
-
-        private static bool IsSafeToIgnore(Exception? exception)
-        {
-            return exception is NotSupportedException or InvalidOperationException;
         }
 
         private void VisitEnumerable(IEnumerable enumerable, TraversalPath path)
@@ -239,120 +204,61 @@ internal static class ReferenceScanner
             int index = 0;
             foreach (object? item in enumerable)
             {
-                TraversalPath itemPath = path.NextIndex(index);
-                if (_accumulator.TryCaptureFromObject(item, itemPath))
-                {
-                    index++;
-                    continue;
-                }
-
-                VisitNestedItem(item, itemPath);
-
+                VisitValue(item, path.NextIndex(index));
                 index++;
             }
         }
-    }
 
-    private sealed class ReferenceMatchAccumulator : IDisposable
-    {
-        private readonly IWorldElement _source;
-        private readonly IWorldElement _target;
-        private readonly BorrowedList<SyncReferenceMatch> _matchesLease;
-        private readonly BorrowedHashSet<ISyncRef> _visitedRefsLease;
-        private readonly List<SyncReferenceMatch> _matches;
-        private readonly HashSet<ISyncRef> _visitedRefs;
-        private readonly HashSet<object> _visitedEnumerables = new(ReferenceEqualityComparer.Instance);
-
-        private int _visitedMembers;
-        private int _incompatibleCount;
-        private string? _lastPath;
-
-        internal ReferenceMatchAccumulator(IWorldElement source, IWorldElement target)
+        private void VisitValue(object? value, TraversalPath path)
         {
-            ArgumentNullException.ThrowIfNull(source);
-            ArgumentNullException.ThrowIfNull(target);
-            _source = source;
-            _target = target;
-            _matchesLease = BorrowedList<SyncReferenceMatch>.Rent(out _matches);
-            _visitedRefsLease = BorrowedHashSet<ISyncRef>.Rent(out _visitedRefs);
-        }
-
-        internal bool TryCaptureDirect(ISyncMember member, TraversalPath path)
-        {
-            if (member == null)
+            if (value == null)
             {
-                return false;
+                return;
             }
 
-            _visitedMembers++;
+            if (value is ISyncRef syncRef)
+            {
+                TryCapture(syncRef, path);
+                return;
+            }
 
+            if (value is DictionaryEntry entry && entry.Value is ISyncRef entryRef)
+            {
+                TryCapture(entryRef, path);
+                return;
+            }
+
+            if (value is ISyncMember member)
+            {
+                VisitMember(member, path);
+                return;
+            }
+
+            if (value is IEnumerable enumerable && ShouldVisitEnumerable(enumerable))
+            {
+                VisitEnumerable(enumerable, path);
+                return;
+            }
+
+            ISyncRef? extracted = TryExtractSyncRef(value);
+            if (extracted != null)
+            {
+                TryCapture(extracted, path);
+            }
+        }
+
+        private bool TryCapture(ISyncMember member, TraversalPath path)
+        {
             if (member is not ISyncRef syncRef)
             {
                 return false;
             }
 
-            Capture(syncRef, path);
+            TryCapture(syncRef, path);
             return true;
         }
 
-        internal bool TryCaptureFromObject(object? candidate, TraversalPath path)
-        {
-            if (candidate == null)
-            {
-                return false;
-            }
-
-            if (candidate is ISyncRef syncRef)
-            {
-                Capture(syncRef, path);
-                return true;
-            }
-
-            if (candidate is DictionaryEntry entry && entry.Value is ISyncRef entryRef)
-            {
-                Capture(entryRef, path);
-                return true;
-            }
-
-            ISyncRef? extracted = EnumerableInspector.TryExtractSyncRef(candidate);
-            if (extracted != null)
-            {
-                Capture(extracted, path);
-                return true;
-            }
-
-            return false;
-        }
-
-        internal bool ShouldVisitEnumerable(IEnumerable enumerable)
-        {
-            if (enumerable == null)
-            {
-                return false;
-            }
-
-            if (enumerable is string)
-            {
-                return false;
-            }
-
-            return _visitedEnumerables.Add(enumerable);
-        }
-
-        internal ReferenceScanResult BuildResult()
-        {
-            SyncReferenceMatch[] snapshot = _matches.ToArray();
-            return new ReferenceScanResult(snapshot, _incompatibleCount, _visitedMembers, _lastPath);
-        }
-
-        public void Dispose()
-        {
-            _matchesLease.Dispose();
-            _visitedRefsLease.Dispose();
-            _visitedEnumerables.Clear();
-        }
-
-        private void Capture(ISyncRef syncRef, TraversalPath path)
+        private void TryCapture(ISyncRef syncRef, TraversalPath path)
         {
             if (!_visitedRefs.Add(syncRef))
             {
@@ -390,11 +296,23 @@ internal static class ReferenceScanner
             Type? requiredType = syncRef.TargetType;
             return requiredType == null || requiredType.IsInstanceOfType(_target);
         }
-    }
 
-    private static class EnumerableInspector
-    {
-        internal static ISyncRef? TryExtractSyncRef(object candidate)
+        private bool ShouldVisitEnumerable(IEnumerable enumerable)
+        {
+            if (enumerable == null || enumerable is string)
+            {
+                return false;
+            }
+
+            return _visitedEnumerables.Add(enumerable);
+        }
+
+        private static bool ShouldIgnore(Exception ex)
+        {
+            return ex is NotSupportedException or InvalidOperationException;
+        }
+
+        private static ISyncRef? TryExtractSyncRef(object candidate)
         {
             Type type = candidate.GetType();
             if (!type.IsGenericType || !type.Name.StartsWith("KeyValuePair", StringComparison.Ordinal))
@@ -411,16 +329,6 @@ internal static class ReferenceScanner
             return valueProperty.GetValue(candidate) as ISyncRef;
         }
     }
-
-    private sealed class ReferenceEqualityComparer : IEqualityComparer<object>
-    {
-        public static ReferenceEqualityComparer Instance { get; } = new();
-
-        public new bool Equals(object? x, object? y) => ReferenceEquals(x, y);
-
-        public int GetHashCode(object obj) => RuntimeHelpers.GetHashCode(obj);
-    }
-
 }
 
 internal sealed record SyncReferenceMatch(ISyncRef SyncRef, string Path);
@@ -469,4 +377,13 @@ internal sealed record HierarchyBlueprint(string Label, IReadOnlyList<ISyncMembe
             : new List<HierarchyBlueprint>(children ?? Array.Empty<HierarchyBlueprint>());
         return new HierarchyBlueprint(label, memberList, childList);
     }
+}
+
+internal sealed class ReferenceEqualityComparer : IEqualityComparer<object>
+{
+    public static ReferenceEqualityComparer Instance { get; } = new();
+
+    public new bool Equals(object? x, object? y) => ReferenceEquals(x, y);
+
+    public int GetHashCode(object obj) => RuntimeHelpers.GetHashCode(obj);
 }
