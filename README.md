@@ -13,6 +13,6 @@ Launch the tool via `Create New > Editor > Reference Replacement (Mod)` in the D
 ## Build & Hot Reload
 
 1. Install the .NET 9 SDK.
-2. `dotnet build ReferenceReplacement.sln` auto-detects `Resonite` next to the repo, the default Steam Windows path, then the default Steam Linux path. If the game lives elsewhere, pass `-p:ResoniteAssembliesDir="/absolute/path/to/Resonite"` so the build can find `FrooxEngine.dll`, `Elements.Core.dll`, `Libraries/ResoniteModLoader.dll`, and `rml_libs/0Harmony.dll`.
-3. Set `CopyToMods=true` when invoking `dotnet build` to copy the compiled DLL into `$(ResoniteAssembliesDir)/rml_mods` after each build.
-4. Drop `ResoniteHotReloadLib.dll` (and `ResoniteHotReloadLibCore.dll`) into `$(ResoniteAssembliesDir)/rml_libs` and build with `-p:EnableResoniteHotReloadLib=true` if you want the Dev Tool’s **Hot Reload Mods** panel to reload this mod without restarting Resonite. Leave the property unset on machines without the DLL.
+2. `dotnet build ReferenceReplacement.sln` auto-detects the Resonite install next to this repo, the default Steam Windows path, then the default Steam Linux path. If the game lives elsewhere, pass `-p:ResonitePath="/absolute/path/to/Resonite"` so the build can find `FrooxEngine.dll`, `Elements.Core.dll`, `Libraries/ResoniteModLoader.dll`, and `rml_libs/0Harmony.dll`.
+3. Set `CopyToMods=true` when invoking `dotnet build` to copy the compiled DLL into `$(ResonitePath)/rml_mods` after each build.
+4. Drop `ResoniteHotReloadLib.dll` (and `ResoniteHotReloadLibCore.dll`) into `$(ResonitePath)/rml_libs` and build with `-p:EnableResoniteHotReloadLib=true` if you want the Dev Tool’s **Hot Reload Mods** panel to reload this mod without restarting Resonite. Leave the property unset on machines without the DLL.

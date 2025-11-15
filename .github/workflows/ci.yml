@@ -79,28 +79,28 @@ jobs:
 
       - name: Restore
         env:
-          ResoniteAssembliesDir: ${{ env.RESONITE_INSTALL_DIR }}
+          ResonitePath: ${{ env.RESONITE_INSTALL_DIR }}
         shell: bash
         run: |
           dotnet restore ReferenceReplacement.sln
 
       - name: Verify formatting
         env:
-          ResoniteAssembliesDir: ${{ env.RESONITE_INSTALL_DIR }}
+          ResonitePath: ${{ env.RESONITE_INSTALL_DIR }}
         shell: bash
         run: |
           dotnet format ReferenceReplacement.sln --verify-no-changes --no-restore
 
       - name: Build
         env:
-          ResoniteAssembliesDir: ${{ env.RESONITE_INSTALL_DIR }}
+          ResonitePath: ${{ env.RESONITE_INSTALL_DIR }}
         shell: bash
         run: |
           dotnet build ReferenceReplacement.sln --configuration Release --no-restore
 
       - name: Test
         env:
-          ResoniteAssembliesDir: ${{ env.RESONITE_INSTALL_DIR }}
+          ResonitePath: ${{ env.RESONITE_INSTALL_DIR }}
         shell: bash
         run: |
           dotnet test ReferenceReplacement.sln --configuration Release --no-build

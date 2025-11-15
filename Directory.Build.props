@@ -6,14 +6,14 @@
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(ResoniteAssembliesDir)'==''">
-    <ResoniteAssembliesDir>$(MSBuildThisFileDirectory)Resonite/</ResoniteAssembliesDir>
-    <ResoniteAssembliesDir Condition="Exists('/mnt/c/Program Files (x86)/Steam/steamapps/common/Resonite/')">/mnt/c/Program Files (x86)/Steam/steamapps/common/Resonite/</ResoniteAssembliesDir>
-    <ResoniteAssembliesDir Condition="Exists('C:\\Program Files (x86)\\Steam\\steamapps\\common\\Resonite\\')">C:\\Program Files (x86)\\Steam\\steamapps\\common\\Resonite\\</ResoniteAssembliesDir>
-    <ResoniteAssembliesDir Condition="Exists('$(HOME)/.steam/steam/steamapps/common/Resonite/')">$(HOME)/.steam/steam/steamapps/common/Resonite/</ResoniteAssembliesDir>
+  <PropertyGroup Condition="'$(ResonitePath)'==''">
+    <ResonitePath>$(MSBuildThisFileDirectory)Resonite/</ResonitePath>
+    <ResonitePath Condition="Exists('/mnt/c/Program Files (x86)/Steam/steamapps/common/Resonite/')">/mnt/c/Program Files (x86)/Steam/steamapps/common/Resonite/</ResonitePath>
+    <ResonitePath Condition="Exists('C:\\Program Files (x86)\\Steam\\steamapps\\common\\Resonite\\')">C:\\Program Files (x86)\\Steam\\steamapps\\common\\Resonite\\</ResonitePath>
+    <ResonitePath Condition="Exists('$(HOME)/.steam/steam/steamapps/common/Resonite/')">$(HOME)/.steam/steam/steamapps/common/Resonite/</ResonitePath>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(ResoniteAssembliesDir)'!=''">
-    <ResolvedResoniteAssembliesDir>$([System.IO.Path]::GetFullPath('$(ResoniteAssembliesDir)'))</ResolvedResoniteAssembliesDir>
+  <PropertyGroup Condition="'$(ResonitePath)'!=''">
+    <ResolvedResonitePath>$([System.IO.Path]::GetFullPath('$(ResonitePath)'))</ResolvedResonitePath>
   </PropertyGroup>
 </Project>

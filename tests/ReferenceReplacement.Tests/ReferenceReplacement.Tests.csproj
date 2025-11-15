@@ -22,15 +22,15 @@
 
   <ItemGroup>
     <Reference Include="FrooxEngine">
-      <HintPath>$(ResoniteAssembliesDir)/FrooxEngine.dll</HintPath>
+      <HintPath>$(ResolvedResonitePath)/FrooxEngine.dll</HintPath>
       <Private>true</Private>
     </Reference>
     <Reference Include="Elements.Core">
-      <HintPath>$(ResoniteAssembliesDir)/Elements.Core.dll</HintPath>
+      <HintPath>$(ResolvedResonitePath)/Elements.Core.dll</HintPath>
       <Private>true</Private>
     </Reference>
     <Reference Include="Renderite.Shared">
-      <HintPath>$(ResoniteAssembliesDir)/Renderite.Shared.dll</HintPath>
+      <HintPath>$(ResolvedResonitePath)/Renderite.Shared.dll</HintPath>
       <Private>true</Private>
     </Reference>
   </ItemGroup>

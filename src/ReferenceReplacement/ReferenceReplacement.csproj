@@ -19,27 +19,27 @@
 
   <ItemGroup>
     <Reference Include="ResoniteModLoader">
-      <HintPath>$(ResolvedResoniteAssembliesDir)/Libraries/ResoniteModLoader.dll</HintPath>
+      <HintPath>$(ResolvedResonitePath)/Libraries/ResoniteModLoader.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="HarmonyLib">
-      <HintPath>$(ResolvedResoniteAssembliesDir)/rml_libs/0Harmony.dll</HintPath>
+      <HintPath>$(ResolvedResonitePath)/rml_libs/0Harmony.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="FrooxEngine">
-      <HintPath>$(ResolvedResoniteAssembliesDir)/FrooxEngine.dll</HintPath>
+      <HintPath>$(ResolvedResonitePath)/FrooxEngine.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Elements.Core">
-      <HintPath>$(ResolvedResoniteAssembliesDir)/Elements.Core.dll</HintPath>
+      <HintPath>$(ResolvedResonitePath)/Elements.Core.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Renderite.Shared">
-      <HintPath>$(ResolvedResoniteAssembliesDir)/Renderite.Shared.dll</HintPath>
+      <HintPath>$(ResolvedResonitePath)/Renderite.Shared.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="ResoniteHotReloadLib" Condition="'$(EnableResoniteHotReloadLib)'=='true'">
-      <HintPath>$(ResolvedResoniteAssembliesDir)/rml_libs/ResoniteHotReloadLib.dll</HintPath>
+      <HintPath>$(ResolvedResonitePath)/rml_libs/ResoniteHotReloadLib.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>
@@ -56,7 +56,7 @@
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(CopyToMods)'=='true'">
     <PropertyGroup>
-      <_ResoniteModsDir>$(ResolvedResoniteAssembliesDir)/rml_mods</_ResoniteModsDir>
+      <_ResoniteModsDir>$(ResolvedResonitePath)/rml_mods</_ResoniteModsDir>
       <_HotReloadModsDir>$(_ResoniteModsDir)/HotReloadMods</_HotReloadModsDir>
       <_BuiltAssembly>$(TargetDir)$(TargetFileName)</_BuiltAssembly>
       <_HotReloadCopyEnabled>false</_HotReloadCopyEnabled>
