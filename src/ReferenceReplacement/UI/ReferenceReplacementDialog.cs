@@ -168,7 +168,9 @@ public sealed class ReferenceReplacementDialog
     {
         LocaleString labelString = (LocaleString)label;
         ui.Text(in labelString);
+        ui.HorizontalLayout(4f);
         ui.RefMemberEditor(referenceField);
+        ui.NestOut();
     }
 
     private void BuildActionButtons(UIBuilder ui)
