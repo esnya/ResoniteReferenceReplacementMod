@@ -1,6 +1,6 @@
 # Reference Replacement Mod
 
-A [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader) mod for [Resonite](https://resonite.com/) that mirrors the Asset Optimization workflow to bulk swap every matching `ISyncRef` inside a single undo batch.
+A [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader) mod for [Resonite](https://resonite.com/) that provides a userspace dialog for bulk replacement of references. Find and replace all references pointing to one element with references to another element within a slot hierarchy, with analysis preview and undo support.
 
 Launch the tool via `Create New > Editor > Reference Replacement (Mod)` in the Dev Create menu.
 
