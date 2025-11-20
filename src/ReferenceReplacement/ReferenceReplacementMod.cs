@@ -20,7 +20,6 @@ public class ReferenceReplacementMod : ResoniteMod
     private const string CreationMenuCategory = "Editor";
     private const string CreationMenuLabel = "Reference Replacement (Mod)";
     private static readonly Harmony HarmonyInstance = new(HarmonyId);
-    private static bool _creationEntryRegistered;
 
     public override string Name => "ReferenceReplacement";
     public override string Author => "esnya";
@@ -37,7 +36,6 @@ public class ReferenceReplacementMod : ResoniteMod
     {
         HarmonyInstance.UnpatchAll(HarmonyId);
         HotReloader.RemoveMenuOption(CreationMenuCategory, CreationMenuLabel);
-        _creationEntryRegistered = false;
     }
 
     public static void OnHotReload(ResoniteMod modInstance)
@@ -58,13 +56,6 @@ public class ReferenceReplacementMod : ResoniteMod
 
     private static void RegisterCreationEntry()
     {
-        if (_creationEntryRegistered)
-        {
-            return;
-        }
-
         DevCreateNewForm.AddAction(CreationMenuCategory, CreationMenuLabel, ReferenceReplacementDialog.OpenFromSlot);
-
-        _creationEntryRegistered = true;
     }
 }
